@@ -13,4 +13,9 @@ dev = [
     "pandas>=2.3.3",
     "seaborn>=0.13.2",
     "unsloth>=2025.10.3",
+    "beautifulsoup4>=4.14.3",
+    "dvc>=3.64.2",
+    "dvc-gdrive>=3.0.1",
+    "numpy>=2.4.0",
+    "requests>=2.32.5",
 ]

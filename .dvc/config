@@ -1,0 +1,4 @@
+[core]
+    remote = voz_turista
+['remote "voz_turista"']
+    url = gdrive://1Klq20uULM4IzaY-ArPxmCR32HfyAdZZp

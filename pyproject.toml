@@ -3,8 +3,13 @@ name = "tourism-reports-llm"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.12"
-dependencies = []
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi[standard]>=0.127.0",
+    "langchain-core>=1.2.4",
+    "langgraph>=1.0.5",
+    "pydantic>=2.12.5",
+]
 
 [dependency-groups]
 dev = [

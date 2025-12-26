@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi[standard]>=0.127.0",
+    "google-genai>=1.56.0",
     "langchain-core>=1.2.4",
     "langgraph>=1.0.5",
     "pydantic>=2.12.5",

@@ -1,6 +1,6 @@
 outs:
-- md5: c9af722dd66a36a91b522c14158e7c54.dir
-  size: 162465496
+- md5: 5ad8f056fc2512c75a43739af3052271.dir
+  size: 213065636
   nfiles: 6
   hash: md5
   path: restmex_reduced

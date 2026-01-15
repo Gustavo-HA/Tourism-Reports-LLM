@@ -43,15 +43,13 @@ format:
 ## Download Data from storage system
 .PHONY: sync_data_down
 sync_data_down:
-	aws s3 sync s3://tourism-reports-project/data/ \
-		data/ 
+	uv run dvc pull
 	
 
 ## Upload Data to storage system
 .PHONY: sync_data_up
 sync_data_up:
-	aws s3 sync data/ \
-		s3://tourism-reports-project/data 
+	uv run dvc push
 	
 
 
@@ -59,10 +57,7 @@ sync_data_up:
 ## Set up Python interpreter environment
 .PHONY: create_environment
 create_environment:
-	uv venv --python $(PYTHON_VERSION)
-	@echo ">>> New uv virtual environment created. Activate with:"
-	@echo ">>> Windows: .\\\\.venv\\\\Scripts\\\\activate"
-	@echo ">>> Unix/macOS: source ./.venv/bin/activate"
+	uv sync
 
 
 

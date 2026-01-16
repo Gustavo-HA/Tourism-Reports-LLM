@@ -1,5 +1,5 @@
 \documentclass[letterpaper,12pt,twoside]{book}  % book class
-\usepackage[spanish,es-nodecimaldot,es-tabla]{babel} % language/hyphenation
+%%s\usepackage[spanish,es-nodecimaldot,es-tabla]{babel} % language/hyphenation
 \usepackage[utf8]{inputenc}  % input encoding
 \usepackage{graphicx} % graphics library (REQUIRED by CIMATpreamble)
 \usepackage[svgnames,table]{xcolor}  % color library (REQUIRED by CIMATpreamble)
@@ -38,7 +38,7 @@
 
 \author{Gustavo Hernández Angeles}
 \documentType{T E S I S}  % change to "T E S I N A" if it is the case
-\title{La Voz del Turista: Generación de Reportes sobre Pueblos Mágicos con RAG e In-Context Learning para la Mejora de la Competitividad Turística}
+\title{La Voz del Turista: Flujo de Trabajo Basado en Modelos de Lenguaje para la Mejora de la Ventaja Competitiva en Pueblos Mágicos}
 \degree{Maestro en Cómputo Estadístico}
 \supervisor{Dr. Norberto Alejandro Hernández Leandro}
 %\supervisorSecond{Dra. M. F.}  % optional command
@@ -59,26 +59,37 @@
 % Dedication
 \chapter*{}
 \begin{flushright}%
-  \emph{Dedicatoria \ldots}
+  \emph{To my family.} \\[2cm]
+  
+
   \thispagestyle{empty}
 \end{flushright}
 
-% Abstract
-\chapter*{Resumen}
-\addcontentsline{toc}{chapter}{Resumen}
-
-El estudio del fenómeno de la violencia en México que acontece durante la conocida ``Guerra contra las drogas'' ha sido abordado desde diferentes perspectivas y mediante enfoques tanto cualitativos como cuantitativos. En referencia al último enfoque, aunque ya existen trabajos que analizan este problema a través de modelos estadísticos, aún existen aspectos por cubrir.
-
-A partir de un análisis exploratorio de los datos seleccionamos el conjunto de covariables más relevantes y delimitamos una región para la modelación. Ya que los procesos de este tipo inducen correlación espacial, proponemos una serie de parametrizaciones de un modelo espacio-temporal jerárquico bayesiano con efectos de espacio y tiempo separables. 
-\\
-% Keywords
-\paragraph{Palabras clave:} modelación espacio-temporal, modelo jerárquico bayesiano, ciencia de datos, cómputo estadístico, inla, datos de áreas
-
 % Acknowledgements
-\chapter*{Agradecimientos}
-\addcontentsline{toc}{chapter}{Agradecimientos}
+\chapter*{Acknowledgements}
+\addcontentsline{toc}{chapter}{Acknowledgements}
 
-A mis padres \ldots
+\noindent To my parents Octavio and Abigail, who have provided me with immense and unconditional support. They are my inspiration and strength. \\[0.2cm]
+
+\noindent To my brothers, Arael and Javier, for their constant support and for being role models. \\[0.2cm]
+
+\noindent To my friends, for making this journey more bearable with laughter and constant support. \\[0.2cm]
+
+\noindent To Yazmin, for the great support, patience, and continuous joys.
+
+% Abstract
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+The use of LLMs has revolutionized the way organizations can analyze and leverage large volumes of unstructured data. In particular, tourist destinations face the challenge of extracting valuable information from tourists' opinions and comments to improve their competitive advantage. Traditionally, opinion analysis requires significant manual effort or NLP techniques that may not fully capture the context and nuances of human language.
+
+In this thesis, we present a workflow based on LLMs to analyze tourists' opinions in Mexico's \textit{Pueblos Mágicos}, aiming to identify insights in their hotel and restaurant markets, as well as natural and historical tourist resources, promoting continuous improvement of competitive advantage in Pueblos Mágicos. We propose a Map-Reduce workflow that integrates RAG for review retrieval using Sentence Transformer models (also known as bi-encoders) that capture the semantics of opinions. Subsequently, LLMs are employed for analyzing and synthesizing the retrieved information, generating executive reports that highlight key areas for improvement and strategic opportunities.
+
+
+% Keywords
+\paragraph{Keywords:} Large Language Models, Competitive Advantage, Pueblos Mágicos, Tourism, Opinion Analysis, Retrieval-Augmented Generation, Sentence Transformers.
+
+
 
 % Table of contents and list of figures
 \tableofcontents

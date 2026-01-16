@@ -1,35 +1,6 @@
 \begin{thebibliography}{}
 
 \bibitem [\protect \citeauthoryear {%
-Atuesta%
-\ \BBA {} Ponce%
-}{%
-Atuesta%
-\ \BBA {} Ponce%
-}{%
-{\protect \APACyear {2017}}%
-}]{%
-Atuesta2017}
-\APACinsertmetastar {%
-Atuesta2017}%
-\begin{APACrefauthors}%
-Atuesta, L\BPBI H.%
-\BCBT {}\ \BBA {} Ponce, A\BPBI F.%
-\end{APACrefauthors}%
-\unskip\
-\newblock
-\APACrefYearMonthDay{2017}{{\APACmonth{07}}}{}.
-\newblock
-{\BBOQ}\APACrefatitle {Meet the Narco: increased competition among criminal organisations and the explosion of violence in Mexico} {Meet the narco: increased competition among criminal organisations and the explosion of violence in mexico}.{\BBCQ}
-\newblock
-\APACjournalVolNumPages{Global Crime}{18}{4}{375--402}.
-\newblock
-\begin{APACrefURL} \url{https://doi.org/10.1080/17440572.2017.1354520} \end{APACrefURL}
-\newblock
-\begin{APACrefDOI} \doi{10.1080/17440572.2017.1354520} \end{APACrefDOI}
-\PrintBackRefs{\CurrentBib}
-
-\bibitem [\protect \citeauthoryear {%
 Kahle%
 \ \BBA {} Wickham%
 }{%
@@ -78,54 +49,6 @@ Lawson, A.%
 \APACaddressPublisher{}{Taylor \& Francis}.
 \newblock
 \begin{APACrefURL} \url{https://books.google.com.mx/books?id=g7RJEZb1umwC} \end{APACrefURL}
-\PrintBackRefs{\CurrentBib}
-
-\bibitem [\protect \citeauthoryear {%
-R{\'\i}os%
-}{%
-R{\'\i}os%
-}{%
-{\protect \APACyear {2012}}%
-}]{%
-Rios2012tendencias}
-\APACinsertmetastar {%
-Rios2012tendencias}%
-\begin{APACrefauthors}%
-R{\'\i}os, V.%
-\end{APACrefauthors}%
-\unskip\
-\newblock
-\APACrefYearMonthDay{2012}{}{}.
-\newblock
-{\BBOQ}\APACrefatitle {Tendencias y explicaciones al asesinato de periodistas y alcaldes en M{\'e}xico: El crimen organizado y la violencia de alto perfil} {Tendencias y explicaciones al asesinato de periodistas y alcaldes en m{\'e}xico: El crimen organizado y la violencia de alto perfil}.{\BBCQ}
-\newblock
-\APACjournalVolNumPages{Cambridge: Harvard University), unpublished typescript (http://www. gov. harvard. edu/people/viridianarios-contreras)}{}{}{}.
-\PrintBackRefs{\CurrentBib}
-
-\bibitem [\protect \citeauthoryear {%
-Youngers%
-}{%
-Youngers%
-}{%
-{\protect \APACyear {2014}}%
-}]{%
-Youngers2014}
-\APACinsertmetastar {%
-Youngers2014}%
-\begin{APACrefauthors}%
-Youngers, C\BPBI A.%
-\end{APACrefauthors}%
-\unskip\
-\newblock
-\APACrefYearMonthDay{2014}{{\APACmonth{01}}}{}.
-\newblock
-{\BBOQ}\APACrefatitle {El debate sobre pol{\'{\i}}ticas de drogas en Am{\'{e}}rica Latina} {El debate sobre pol{\'{\i}}ticas de drogas en am{\'{e}}rica latina}.{\BBCQ}
-\newblock
-\APACjournalVolNumPages{{URVIO} - Revista Latinoamericana de Estudios de Seguridad}{}{13}{}.
-\newblock
-\begin{APACrefURL} \url{https://doi.org/10.17141/urvio.13.2013.1178} \end{APACrefURL}
-\newblock
-\begin{APACrefDOI} \doi{10.17141/urvio.13.2013.1178} \end{APACrefDOI}
 \PrintBackRefs{\CurrentBib}
 
 \end{thebibliography}

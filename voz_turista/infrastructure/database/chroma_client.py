@@ -1,13 +1,12 @@
-import os
 import uuid
 from pathlib import Path
 from typing import Any, Dict, List
 
 import chromadb
-import pandas as pd
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 
 from .utils import normalize_town_name, prepare_restmex_dataframe
+
 
 class ChromaClient:
     def __init__(
@@ -17,7 +16,7 @@ class ChromaClient:
         embedding_model: str,
         device_preference: str = "cuda",
         use_upsert: bool = False,
-        ):  # noqa: D401
+    ):
         """Inicializa el cliente de ChromaDB."""
         self.collection_name = collection_name
         self.use_upsert = use_upsert
@@ -118,20 +117,22 @@ class ChromaClient:
         limit: int = 100,
         filters: Dict[str, Any] = None,
         text_query: str = "",
-        ) -> List[Dict[str, Any]]:
+    ) -> List[Dict[str, Any]]:
         """
         Recupera reseñas filtradas por pueblo y otros criterios.
-        
+
         Args:
             town (str): Nombre del Pueblo Mágico.
             limit (int): Número máximo de reseñas a recuperar.
             filters (Dict): Filtros adicionales (ej. {'type': 'Restaurant'}).
-            
+
         Returns:
             List[Dict]: Lista de reseñas con sus metadatos.
         """
         if not text_query:
-            raise ValueError("Se requiere un texto de consulta no vacío para realizar la búsqueda.")
+            raise ValueError(
+                "Se requiere un texto de consulta no vacío para realizar la búsqueda."
+            )
 
         town_norm = normalize_town_name(town)
 
@@ -148,18 +149,21 @@ class ChromaClient:
             n_results=limit,
             where=where_clause,
         )
-        
+
         reviews = []
-        if results['documents']:
-            for i in range(len(results['documents'][0])):
-                reviews.append({
-                    "id": results['ids'][0][i],
-                    "text": results['documents'][0][i],
-                    "metadata": results['metadatas'][0][i],
-                    "distance": results['distances'][0][i],
-                })
-                
+        if results["documents"]:
+            for i in range(len(results["documents"][0])):
+                reviews.append(
+                    {
+                        "id": results["ids"][0][i],
+                        "text": results["documents"][0][i],
+                        "metadata": results["metadatas"][0][i],
+                        "distance": results["distances"][0][i],
+                    }
+                )
+
         return reviews
+
 
 if __name__ == "__main__":
     # Ejemplo de ingesta (nueva versión limpia)

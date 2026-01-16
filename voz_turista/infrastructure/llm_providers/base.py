@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 from langchain_core.messages import BaseMessage
+
 
 class LLMProvider(ABC):
     """
@@ -16,7 +17,9 @@ class LLMProvider(ABC):
         pass
 
     @abstractmethod
-    def generate_structured(self, messages: List[BaseMessage], schema: Dict[str, Any], **kwargs) -> Any:
+    def generate_structured(
+        self, messages: List[BaseMessage], schema: Dict[str, Any], **kwargs
+    ) -> Any:
         """
         Genera una respuesta estructurada (JSON) validada contra un esquema.
         """

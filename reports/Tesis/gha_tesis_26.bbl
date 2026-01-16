@@ -1,0 +1,54 @@
+\begin{thebibliography}{}
+
+\bibitem [\protect \citeauthoryear {%
+Kahle%
+\ \BBA {} Wickham%
+}{%
+Kahle%
+\ \BBA {} Wickham%
+}{%
+{\protect \APACyear {2013}}%
+}]{%
+Kahle2013ggmap}
+\APACinsertmetastar {%
+Kahle2013ggmap}%
+\begin{APACrefauthors}%
+Kahle, D.%
+\BCBT {}\ \BBA {} Wickham, H.%
+\end{APACrefauthors}%
+\unskip\
+\newblock
+\APACrefYearMonthDay{2013}{}{}.
+\newblock
+{\BBOQ}\APACrefatitle {ggmap: Spatial Visualization with ggplot2} {ggmap: Spatial visualization with ggplot2}.{\BBCQ}
+\newblock
+\APACjournalVolNumPages{The R Journal}{5}{1}{144--161}.
+\newblock
+\begin{APACrefURL} \url{https://journal.r-project.org/archive/2013-1/kahle-wickham.pdf} \end{APACrefURL}
+\PrintBackRefs{\CurrentBib}
+
+\bibitem [\protect \citeauthoryear {%
+Lawson%
+}{%
+Lawson%
+}{%
+{\protect \APACyear {2013}}%
+}]{%
+lawson2013bayesian}
+\APACinsertmetastar {%
+lawson2013bayesian}%
+\begin{APACrefauthors}%
+Lawson, A.%
+\end{APACrefauthors}%
+\unskip\
+\newblock
+\APACrefYear{2013}.
+\newblock
+\APACrefbtitle {Bayesian Disease Mapping: Hierarchical Modeling in Spatial Epidemiology, Second Edition} {Bayesian disease mapping: Hierarchical modeling in spatial epidemiology, second edition}.
+\newblock
+\APACaddressPublisher{}{Taylor \& Francis}.
+\newblock
+\begin{APACrefURL} \url{https://books.google.com.mx/books?id=g7RJEZb1umwC} \end{APACrefURL}
+\PrintBackRefs{\CurrentBib}
+
+\end{thebibliography}

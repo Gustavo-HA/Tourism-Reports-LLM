@@ -1,5 +1,5 @@
 \documentclass[letterpaper,12pt,twoside]{book}  % book class
-%%s\usepackage[spanish,es-nodecimaldot,es-tabla]{babel} % language/hyphenation
+\usepackage[spanish,es-nodecimaldot,es-tabla]{babel} % language/hyphenation
 \usepackage[utf8]{inputenc}  % input encoding
 \usepackage{graphicx} % graphics library (REQUIRED by CIMATpreamble)
 \usepackage[svgnames,table]{xcolor}  % color library (REQUIRED by CIMATpreamble)
@@ -59,35 +59,36 @@
 % Dedication
 \chapter*{}
 \begin{flushright}%
-  \emph{To my family.} \\[2cm]
+  \emph{A mi familia.} \\[2cm]
   
 
   \thispagestyle{empty}
 \end{flushright}
 
 % Acknowledgements
-\chapter*{Acknowledgements}
-\addcontentsline{toc}{chapter}{Acknowledgements}
+\chapter*{Agradecimientos}
+\addcontentsline{toc}{chapter}{Agradecimientos}
 
-\noindent To my parents Octavio and Abigail, who have provided me with immense and unconditional support. They are my inspiration and strength. \\[0.2cm]
+\noindent A mis padres Octavio y Abigail, quienes me han brindado un apoyo inmenso e incondicional. Son mi inspiración y fortaleza. \\[0.2cm]
 
-\noindent To my brothers, Arael and Javier, for their constant support and for being role models. \\[0.2cm]
+\noindent A mis hermanos, Arael y Javier, por su apoyo constante y por ser modelos a seguir. \\[0.2cm]
 
-\noindent To my friends, for making this journey more bearable with laughter and constant support. \\[0.2cm]
+\noindent A mis amigos, por hacer este camino más llevadero con risas y apoyo constante. \\[0.2cm]
 
-\noindent To Yazmin, for the great support, patience, and continuous joys.
+\noindent A Yazmin, por el gran apoyo, paciencia y alegrías continuas.
 
+\noindent \textbf{Por anotar: Asesor, Sinodales, Apoyos dados por el CIMAT y SECIHTI.}
 % Abstract
-\chapter*{Abstract}
-\addcontentsline{toc}{chapter}{Abstract}
+\chapter*{Resumen}
+\addcontentsline{toc}{chapter}{Resumen}
 
-The use of LLMs has revolutionized the way organizations can analyze and leverage large volumes of unstructured data. In particular, tourist destinations face the challenge of extracting valuable information from tourists' opinions and comments to improve their competitive advantage. Traditionally, opinion analysis requires significant manual effort or NLP techniques that may not fully capture the context and nuances of human language.
+El uso de los LLMs ha revolucionado la forma en que las organizaciones pueden analizar y aprovechar grandes volúmenes de datos no estructurados. En particular, los destinos turísticos enfrentan el desafío de extraer información valiosa de las opiniones y comentarios de los turistas para mejorar su ventaja competitiva. Tradicionalmente, el análisis de opiniones requiere un esfuerzo manual significativo o técnicas de PLN que pueden no capturar completamente el contexto y las sutilezas del lenguaje humano.
 
-In this thesis, we present a workflow based on LLMs to analyze tourists' opinions in Mexico's \textit{Pueblos Mágicos}, aiming to identify insights in their hotel and restaurant markets, as well as natural and historical tourist resources, promoting continuous improvement of competitive advantage in Pueblos Mágicos. We propose a Map-Reduce workflow that integrates RAG for review retrieval using Sentence Transformer models (also known as bi-encoders) that capture the semantics of opinions. Subsequently, LLMs are employed for analyzing and synthesizing the retrieved information, generating executive reports that highlight key areas for improvement and strategic opportunities.
+En esta tesis, presentamos un flujo de trabajo basado en LLMs para analizar las opiniones de los turistas en los \textit{Pueblos Mágicos} de México, con el objetivo de identificar ideas en sus mercados hotelero y restaurantero, así como en los recursos turísticos naturales e históricos, promoviendo la mejora continua de la ventaja competitiva en los Pueblos Mágicos. Proponemos un flujo de trabajo \textit{Map - Reduce} que integra RAG para la recuperación de reseñas utilizando modelos \textit{Sentence Transformer} (también conocidos como bi-encoders) que capturan la semántica de las opiniones. Posteriormente, se emplean LLMs para analizar y sintetizar la información recuperada, generando informes ejecutivos que destacan áreas clave para la mejora y oportunidades estratégicas.
 
 
 % Keywords
-\paragraph{Keywords:} Large Language Models, Competitive Advantage, Pueblos Mágicos, Tourism, Opinion Analysis, Retrieval-Augmented Generation, Sentence Transformers.
+\paragraph{Keywords:} Large Language Models, Ventaja Competitiva, Pueblos Mágicos, Turismo, Análisis de Opiniones, Retrieval-Augmented Generation, Sentence Transformers.
 
 
 

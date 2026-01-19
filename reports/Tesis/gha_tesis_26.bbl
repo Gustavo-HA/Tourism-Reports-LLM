@@ -1,54 +1,101 @@
 \begin{thebibliography}{}
 
 \bibitem [\protect \citeauthoryear {%
-Kahle%
-\ \BBA {} Wickham%
+Bilgihan%
+, Seo%
+\BCBL {}\ \BBA {} Choi%
 }{%
-Kahle%
-\ \BBA {} Wickham%
-}{%
-{\protect \APACyear {2013}}%
+Bilgihan%
+\ \protect \BOthers {.}}{%
+{\protect \APACyear {2018}}%
 }]{%
-Kahle2013ggmap}
+bilgihan2018identifying}
 \APACinsertmetastar {%
-Kahle2013ggmap}%
+bilgihan2018identifying}%
 \begin{APACrefauthors}%
-Kahle, D.%
-\BCBT {}\ \BBA {} Wickham, H.%
+Bilgihan, A.%
+, Seo, S.%
+\BCBL {}\ \BBA {} Choi, J.%
 \end{APACrefauthors}%
 \unskip\
 \newblock
-\APACrefYearMonthDay{2013}{}{}.
+\APACrefYearMonthDay{2018}{}{}.
 \newblock
-{\BBOQ}\APACrefatitle {ggmap: Spatial Visualization with ggplot2} {ggmap: Spatial visualization with ggplot2}.{\BBCQ}
+{\BBOQ}\APACrefatitle {Identifying restaurant satisfiers and dissatisfiers: Suggestions from online reviews} {Identifying restaurant satisfiers and dissatisfiers: Suggestions from online reviews}.{\BBCQ}
 \newblock
-\APACjournalVolNumPages{The R Journal}{5}{1}{144--161}.
-\newblock
-\begin{APACrefURL} \url{https://journal.r-project.org/archive/2013-1/kahle-wickham.pdf} \end{APACrefURL}
+\APACjournalVolNumPages{Journal of Hospitality Marketing \& Management}{27}{5}{601--625}.
 \PrintBackRefs{\CurrentBib}
 
 \bibitem [\protect \citeauthoryear {%
-Lawson%
+Cantallops%
+\ \BBA {} Salvi%
 }{%
-Lawson%
+Cantallops%
+\ \BBA {} Salvi%
 }{%
-{\protect \APACyear {2013}}%
+{\protect \APACyear {2014}}%
 }]{%
-lawson2013bayesian}
+cantallops2014new}
 \APACinsertmetastar {%
-lawson2013bayesian}%
+cantallops2014new}%
 \begin{APACrefauthors}%
-Lawson, A.%
+Cantallops, A\BPBI S.%
+\BCBT {}\ \BBA {} Salvi, F.%
 \end{APACrefauthors}%
 \unskip\
 \newblock
-\APACrefYear{2013}.
+\APACrefYearMonthDay{2014}{}{}.
 \newblock
-\APACrefbtitle {Bayesian Disease Mapping: Hierarchical Modeling in Spatial Epidemiology, Second Edition} {Bayesian disease mapping: Hierarchical modeling in spatial epidemiology, second edition}.
+{\BBOQ}\APACrefatitle {New consumer behavior: A review of research on eWOM and hotels} {New consumer behavior: A review of research on ewom and hotels}.{\BBCQ}
 \newblock
-\APACaddressPublisher{}{Taylor \& Francis}.
+\APACjournalVolNumPages{International Journal of Hospitality Management}{36}{}{41--51}.
+\PrintBackRefs{\CurrentBib}
+
+\bibitem [\protect \citeauthoryear {%
+Mishra%
+\ \BBA {} Satish%
+}{%
+Mishra%
+\ \BBA {} Satish%
+}{%
+{\protect \APACyear {2016}}%
+}]{%
+mishra2016ewom}
+\APACinsertmetastar {%
+mishra2016ewom}%
+\begin{APACrefauthors}%
+Mishra, A.%
+\BCBT {}\ \BBA {} Satish, S.%
+\end{APACrefauthors}%
+\unskip\
 \newblock
-\begin{APACrefURL} \url{https://books.google.com.mx/books?id=g7RJEZb1umwC} \end{APACrefURL}
+\APACrefYearMonthDay{2016}{}{}.
+\newblock
+{\BBOQ}\APACrefatitle {eWOM: Extant research review and future research avenues} {ewom: Extant research review and future research avenues}.{\BBCQ}
+\newblock
+\APACjournalVolNumPages{Vikalpa}{41}{3}{222--233}.
+\PrintBackRefs{\CurrentBib}
+
+\bibitem [\protect \citeauthoryear {%
+Ong%
+}{%
+Ong%
+}{%
+{\protect \APACyear {2012}}%
+}]{%
+ong2012perceived}
+\APACinsertmetastar {%
+ong2012perceived}%
+\begin{APACrefauthors}%
+Ong, B\BPBI S.%
+\end{APACrefauthors}%
+\unskip\
+\newblock
+\APACrefYearMonthDay{2012}{}{}.
+\newblock
+{\BBOQ}\APACrefatitle {The perceived influence of user reviews in the hospitality industry} {The perceived influence of user reviews in the hospitality industry}.{\BBCQ}
+\newblock
+\APACjournalVolNumPages{Journal of Hospitality Marketing \& Management}{21}{5}{463--485}.
 \PrintBackRefs{\CurrentBib}
 
 \end{thebibliography}

@@ -1,11 +1,11 @@
 import uuid
-from pathlib import Path
 from typing import Any, Dict, List
 
 import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-from .utils import normalize_town_name, prepare_restmex_dataframe
+from .utils import read_restmex_dataframe
 
 
 class ChromaClient:
@@ -48,33 +48,19 @@ class ChromaClient:
             },
         )
 
-    def ingest_restmex_csv(
+    def add_documents(
         self,
-        csv_path: str,
-        batch_size: int = 500,
-        output_clean_csv: str | None = None,
+        documents: List[str],
+        metadatas: List[Dict[str, Any]],
+        ids: List[str],
+        batch_size: int = 1000,
     ) -> None:
-        """Ingesta datos desde un archivo CSV a ChromaDB con limpieza y desduplicación."""
-        df_clean = prepare_restmex_dataframe(csv_path)
-
-        if output_clean_csv:
-            Path(output_clean_csv).parent.mkdir(parents=True, exist_ok=True)
-            df_clean.to_csv(output_clean_csv, index=False)
-            print(f"CSV limpio escrito en: {output_clean_csv}")
-
-        total_records = len(df_clean)
-        print(f"Procesando {total_records} reseñas válidas...")
-
-        texts = df_clean["text"].astype(str).tolist()
-        towns = df_clean["TownNormalized"].astype(str).tolist()
-        towns_raw = df_clean["Town"].astype(str).tolist()
-        polarities = df_clean["Polarity"].astype(float).tolist()
-        types = df_clean["Type"].astype(str).tolist()
-        regions = df_clean["Region"].astype(str).tolist()
-
-        ids = [str(uuid.uuid5(uuid.NAMESPACE_DNS, doc)) for doc in texts]
-
+        """
+        Agrega o actualiza documentos en la colección de forma genérica y por lotes.
+        """
+        total_records = len(documents)
         total_lotes = (total_records + batch_size - 1) // batch_size
+        print(f"Ingestando {total_records} documentos en {total_lotes} lotes...")
 
         add_fn = (
             self.collection.upsert
@@ -84,32 +70,86 @@ class ChromaClient:
 
         for i in range(0, total_records, batch_size):
             end_idx = min(i + batch_size, total_records)
-
-            batch_documents = texts[i:end_idx]
+            
+            batch_docs = documents[i:end_idx]
+            batch_metas = metadatas[i:end_idx]
             batch_ids = ids[i:end_idx]
-
-            batch_metadatas = [
-                {
-                    "town": towns[k],
-                    "town_raw": towns_raw[k],
-                    "polarity": polarities[k],
-                    "type": types[k],
-                    "region": regions[k],
-                }
-                for k in range(i, end_idx)
-            ]
 
             try:
                 add_fn(
-                    documents=batch_documents,
-                    metadatas=batch_metadatas,
+                    documents=batch_docs,
+                    metadatas=batch_metas,
                     ids=batch_ids,
                 )
                 print(f"Lote procesado: {i // batch_size + 1} / {total_lotes}")
             except Exception as e:
                 print(f"Error en el lote {i}: {e}")
+        
+        print("Operación completada.")
 
-        print("Ingesta completada exitosamente.")
+    def ingest_restmex(
+        self,
+        parquet_path: str,
+        batch_size: int = 1000,
+        chunk_size: int = 200,
+        chunk_overlap: int = 50,
+    ) -> None:
+        """
+        Ingesta datos desde un archivo Parquet a ChromaDB con soporte para chunking.
+        """
+        df_restmex = read_restmex_dataframe(parquet_path)
+        print(f"Procesando {len(df_restmex)} registros originales...")
+
+        # Configurar splitter
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+            separators=["\n\n", "\n", ". ", " ", ""],
+        )
+
+        all_documents = []
+        all_metadatas = []
+        all_ids = []
+
+        for row in df_restmex.itertuples(index=False):
+            # Access attributes with dot notation instead of brackets
+            original_text = row.text 
+            if not isinstance(original_text, str) or not original_text.strip():
+                continue
+
+            # Generar chunks
+            chunks = text_splitter.split_text(original_text)
+            
+            # ID base del documento original
+            composite_key = f"{row.Pueblo}-{row.Lugar}-{row.FechaEstadia}-{original_text}"
+            base_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, composite_key))
+
+            for i, chunk in enumerate(chunks):
+                chunk_id = f"{base_id}_{i}"
+                
+                # Metadatos base + info del chunk
+                metadata = {
+                    "town": row.Pueblo,
+                    "polarity": row.Calificacion,
+                    "type": row.Tipo,
+                    "place": row.Lugar,
+                    "month": row.FechaEstadia.month,
+                    "year": row.FechaEstadia.year,
+                    "source_id": base_id,
+                    "chunk_index": i,
+                }
+
+                all_documents.append(chunk)
+                all_metadatas.append(metadata)
+                all_ids.append(chunk_id)
+
+        # Ingestar usando el método genérico
+        self.add_documents(
+            documents=all_documents,
+            metadatas=all_metadatas,
+            ids=all_ids,
+            batch_size=batch_size
+        )
 
     def query_reviews(
         self,
@@ -134,15 +174,13 @@ class ChromaClient:
                 "Se requiere un texto de consulta no vacío para realizar la búsqueda."
             )
 
-        town_norm = normalize_town_name(town)
-
         if filters:
-            conditions = [{"town": town_norm}]
+            conditions = [{"town": town}]
             for key, value in filters.items():
                 conditions.append({key: value})
             where_clause = {"$and": conditions}
         else:
-            where_clause = {"town": town_norm}
+            where_clause = {"town": town}
 
         results = self.collection.query(
             query_texts=[text_query],
@@ -167,18 +205,19 @@ class ChromaClient:
 
 if __name__ == "__main__":
     # Ejemplo de ingesta (nueva versión limpia)
-    client = ChromaClient(
-        persist_directory="data/chromadb/restmex_reduced_v2",
-        collection_name="restmex_reduced_collection_v2",
-        embedding_model="hiiamsid/sentence_similarity_spanish_es",
-        device_preference="cuda",
-        use_upsert=True,
-    )
-    client.ingest_restmex_csv(
-        csv_path="data/restmex/restmex-corpus-reduced.csv",
-        batch_size=500,
-        output_clean_csv="data/restmex/restmex-corpus-reduced-v2.csv",
-    )
+    # client = ChromaClient(
+    #     persist_directory="data/chromadb/restmex_sss_cs200_ov50",
+    #     collection_name="restmex_sss_cs200_ov50",
+    #     embedding_model="hiiamsid/sentence_similarity_spanish_es",
+    #     device_preference="cuda",
+    #     use_upsert=True,
+    # )
+    # client.ingest_restmex(
+    #     parquet_path="data/PueblosMagicos/interim/isla_mujeres.parquet",
+    #     batch_size=1000,
+    #     chunk_size=200,
+    #     chunk_overlap=50,
+    # )
 
     # Ejemplo de consulta
     # client = ChromaClient(

@@ -1,103 +1,194 @@
-from typing import Dict, List, Any
-from langchain_core.messages import SystemMessage, HumanMessage
+from typing import Dict, List, Any, Literal
+from langchain_core.messages import HumanMessage
+from langgraph.types import Send
+
 from voz_turista.application.workflow.state import ProjectState, ReviewChunkState
-from voz_turista.config import Config
+from voz_turista.domain.prompts.templates import (
+    SYSTEM_PROMPT_EXTRACT,
+    SYSTEM_PROMPT_SYNTHESIZE,
+    SYSTEM_PROMPT_AUDITOR,
+)
+from voz_turista.infrastructure.database.chroma_client import ChromaClient
+from voz_turista.infrastructure.llm_providers.google_provider import (
+    LangChainGoogleProvider,
+)
+from voz_turista.config import settings
 
-# --- Mock Services (Reemplazar con implementaciones reales en Infrastructure) ---
-def fetch_reviews(pueblo: str) -> List[str]:
-    # Simulación de DB
-    return [f"Review simulada {i} para {pueblo}" for i in range(150)]
+# Inicialización de servicios (Idealmente inyectados)
+# Nota: Se asume que las variables de entorno están configuradas
 
-def llm_analyze_chunk(reviews: List[str]) -> List[Dict[str, Any]]:
-    return [{"insight": "Buena comida", "source_ids": [1, 2]}, {"insight": "Tráfico", "source_ids": [3]}]
+llm_provider = LangChainGoogleProvider(model_name=settings.LLM_ORCHESTRATOR)
 
-def llm_synthesize(insights: List[Dict], pueblo: str) -> Dict[str, Any]:
-    return {
-        "scorecard": {"calidad": 4.5, "precio": 3.0},
-        "lo_bueno": ["Gastronomía", "Paisajes"],
-        "areas_oportunidad": ["Estacionamiento"],
-        "consideraciones": ["Llevar efectivo"]
-    }
+chroma_client = ChromaClient(persist_directory=settings.VECTOR_DB_PATH)
 
-def llm_generate_suggestions(report: Dict) -> List[str]:
-    return ["¿Cómo es la seguridad de noche?", "¿Qué opciones veganas hay?", "¿Mejor época para ir?"]
 
-def llm_rag_answer(query: str, context: List[str]) -> Dict[str, Any]:
-    return {"pregunta": query, "respuesta": "Respuesta basada en RAG...", "fuentes": [10, 12]}
-
-# --- Nodos del Grafo ---
-
-def router_node(state: ProjectState):
+def retrieve_reviews_node(state: ProjectState) -> Dict[str, Any]:
     """
-    Analiza el estado para decidir el siguiente paso.
-    Si no hay reporte base o cambió el pueblo -> Map-Reduce.
-    Si hay query y reporte -> Deep Dive.
+    Recupera reseñas de ChromaDB basadas en el Pueblo Mágico seleccionado.
     """
-    print(f"--- Router: Analizando solicitud para {state.get('pueblo_magico')} ---")
-    
-    # Lógica simple: Si no hay reporte, generarlo.
-    if not state.get("reporte_base"):
-        # Cargar reviews aquí o en un nodo de carga
-        reviews = fetch_reviews(state["pueblo_magico"])
-        return {"next_step": "map_reduce", "reviews": reviews}
-    
-    if state.get("user_query"):
-        return {"next_step": "deep_dive"}
-        
-    return {"next_step": "end"}
+    print(f"--- Recuperando reseñas para {state['pueblo_magico']} ---")
+    reviews = chroma_client.query_reviews(
+        town=state["pueblo_magico"],
+        limit=100,  # Limite configurable, 300k es mucho para una demo, usar paginación en prod
+    )
+    return {"reviews": reviews}
 
-# --- Nodos Map-Reduce ---
 
-def prepare_chunks_node(state: ProjectState):
-    print("--- Preparando Chunks ---")
+def prepare_chunks_node(state: ProjectState) -> List[Send]:
+    """
+    Divide las reseñas en chunks y distribuye el trabajo (Map).
+    """
+    print("--- Preparando chunks para procesamiento paralelo ---")
     reviews = state["reviews"]
-    batch_size = Config.CHUNK_SIZE
-    chunks = [reviews[i:i + batch_size] for i in range(0, len(reviews), batch_size)]
-    return {"review_chunks": chunks}
+    chunk_size = 20  # Tamaño del lote
+    chunks = [reviews[i : i + chunk_size] for i in range(0, len(reviews), chunk_size)]
 
-def extract_insights_node(state: ReviewChunkState):
-    # Fase Map
-    # print(f"--- Extrayendo Insights Chunk {state['chunk_id']} ---")
-    insights = llm_analyze_chunk(state["reviews"])
-    return {"extracted_insights": insights}
+    # Generar tareas para el nodo de extracción
+    tasks = []
+    for i, chunk in enumerate(chunks):
+        tasks.append(Send("extract_insights_node", {"chunk_id": i, "reviews": chunk}))
 
-def synthesize_report_node(state: ProjectState):
-    print("--- Sintetizando Reporte (Reduce) ---")
-    insights = state["extracted_insights"]
-    pueblo = state["pueblo_magico"]
-    
-    report = llm_synthesize(insights, pueblo)
-    
-    # Consolidar evidencia (mock)
-    evidencia = {str(i): f"Texto review {i}" for i in range(10)} 
-    
-    return {
-        "reporte_base": report,
-        "evidencia_recuperada": evidencia
+    return tasks
+
+
+def extract_insights_node(state: ReviewChunkState) -> Dict[str, Any]:
+    """
+    Nodo MAP: Analiza un lote de reseñas y extrae insights.
+    """
+    print(f"--- Extrayendo insights del chunk {state['chunk_id']} ---")
+
+    # Formatear reseñas para el prompt
+    reviews_text = "\n".join(
+        [f"ID: {r['id']} | Texto: {r['text']}" for r in state["reviews"]]
+    )
+
+    prompt = SYSTEM_PROMPT_EXTRACT.format(
+        pueblo_magico="el destino",  # O pasar el nombre si estuviera en el estado del chunk
+        reviews=reviews_text,
+    )
+
+    # Definir esquema de salida esperado (simplificado para el ejemplo)
+    # En producción usar Pydantic models
+    schema = {
+        "title": "InsightsList",
+        "type": "object",
+        "properties": {
+            "insights": {
+                "type": "array",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "idx_review": {"type": "array", "items": {"type": "string"}},
+                        "insight": {"type": "string"},
+                        "atribucion": {
+                            "type": "string",
+                            "enum": ["Pública", "Privada"],
+                        },
+                        "dimension": {"type": "string"},
+                        "urgencia": {"type": "string"},
+                    },
+                    "required": [
+                        "idx_review",
+                        "insight",
+                        "atribucion",
+                        "dimension",
+                        "urgencia",
+                    ],
+                },
+            }
+        },
     }
 
-def generate_suggestions_node(state: ProjectState):
-    print("--- Generando Sugerencias ---")
-    report = state["reporte_base"]
-    suggestions = llm_generate_suggestions(report)
-    
-    # Añadir sugerencias como mensaje del sistema
-    msg = SystemMessage(content=f"Sugerencias: {', '.join(suggestions)}")
-    
-    return {"messages": [msg]}
+    try:
+        response = llm_provider.generate_structured(
+            messages=[HumanMessage(content=prompt)], schema=schema
+        )
+        return {"insights": response["insights"]}
+    except Exception as e:
+        print(f"Error en chunk {state['chunk_id']}: {e}")
+        return {"insights": []}
 
-# --- Nodos Deep Dive ---
 
-def deep_dive_node(state: ProjectState):
-    print(f"--- Deep Dive: {state['user_query']} ---")
-    # Simulación RAG
-    query = state["user_query"]
-    # Retrieve context (mock)
-    context = ["Contexto relevante 1", "Contexto relevante 2"]
-    
-    answer = llm_rag_answer(query, context)
-    
-    return {
-        "secciones_adicionales": [answer],
-        "messages": [HumanMessage(content=query), SystemMessage(content=answer["respuesta"])]
+def synthesize_report_node(state: ProjectState) -> Dict[str, Any]:
+    """
+    Nodo REDUCE: Sintetiza todos los insights en un reporte estratégico.
+    """
+    print("--- Sintetizando reporte final ---")
+
+    # Consolidar insights (ya están en state['insights'] gracias al reducer operator.add)
+    insights_text = "\n".join(
+        [
+            f"- [{i['urgencia']}] {i['insight']} ({i['atribucion']})"
+            for i in state["insights"]
+        ]
+    )
+
+    prompt = SYSTEM_PROMPT_SYNTHESIZE.format(
+        pueblo_magico=state["pueblo_magico"], insights=insights_text
+    )
+
+    # Esquema del reporte
+    schema = {
+        "title": "StrategicBriefing",
+        "type": "object",
+        "properties": {
+            "scorecard": {"type": "object"},
+            "diagnostico_brechas": {"type": "array", "items": {"type": "string"}},
+            "hoja_ruta": {"type": "object"},
+        },
     }
+
+    response = llm_provider.generate_structured(
+        messages=[HumanMessage(content=prompt)], schema=schema
+    )
+
+    return {"reporte_base": response}
+
+
+def auditor_node(state: ProjectState) -> Dict[str, Any]:
+    """
+    Self-Correction Loop: Verifica la fidelidad del reporte contra la evidencia.
+    """
+    print("--- Auditando reporte ---")
+
+    report_str = str(state["reporte_base"])
+    # Tomar una muestra aleatoria o relevante de reseñas como evidencia para el auditor
+    # En un sistema real, usaríamos RAG para buscar evidencia que contradiga el reporte
+    evidence_sample = "\n".join([r["text"] for r in state["reviews"][:10]])
+
+    prompt = SYSTEM_PROMPT_AUDITOR.format(
+        pueblo_magico=state["pueblo_magico"],
+        report=report_str,
+        evidence=evidence_sample,
+    )
+
+    schema = {
+        "title": "AuditResult",
+        "type": "object",
+        "properties": {
+            "status": {"type": "string", "enum": ["APROBADO", "RECHAZADO"]},
+            "correcciones": {"type": "string"},
+        },
+    }
+
+    response = llm_provider.generate_structured(
+        messages=[HumanMessage(content=prompt)], schema=schema
+    )
+
+    return {
+        "auditoria": response,
+        "iteration_count": state.get("iteration_count", 0) + 1,
+    }
+
+
+def route_after_audit(state: ProjectState) -> Literal["end", "synthesize_report"]:
+    """
+    Decide si terminar o corregir el reporte.
+    """
+    if state["auditoria"]["status"] == "APROBADO" or state["iteration_count"] > 3:
+        print("--- Auditoría aprobada o límite de iteraciones alcanzado ---")
+        return "end"
+    else:
+        print("--- Auditoría rechazada, regenerando reporte ---")
+        # Aquí podríamos inyectar las correcciones en el contexto para la próxima síntesis
+        return "synthesize_report"

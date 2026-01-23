@@ -221,17 +221,17 @@ if __name__ == "__main__":
 
     # Ejemplo de consulta
     # client = ChromaClient(
-    #     persist_directory="data/chromadb/restmex_reduced_v2",
-    #     collection_name="restmex_reduced_collection_v2",
+    #     persist_directory="data/chromadb/restmex_sss_cs200_ov50",
+    #     collection_name="restmex_sss_cs200_ov50",
     #     embedding_model="hiiamsid/sentence_similarity_spanish_es",
     # )
     # filters = {"type": "Restaurant"}
     # reviews = client.query_reviews(
-    #     town="Isla Mujeres",
+    #     town="Isla_Mujeres",
     #     limit=5,
     #     text_query="Comentarios sobre el tiempo de espera entre tiempos, la disponibilidad de mesas y la rapidez del servicio de facturación.",
     #     filters=filters,
     # )
     # for review in reviews:
-    #     print(f"ID: {review['id']}\nTexto: {review['text']}\nMetadatos: {review['metadata']}\nDistance: {review.get('score', 'N/A')}\n---\n")
+    #     print(f"ID: {review['id']}\nTexto: {review['text']}\nMetadatos: {review['metadata']}\nDistance: {review.get('distance', 'N/A')}\n---\n")
     pass

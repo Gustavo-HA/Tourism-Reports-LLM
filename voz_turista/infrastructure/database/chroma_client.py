@@ -177,7 +177,11 @@ class ChromaClient:
         if filters:
             conditions = [{"town": town}]
             for key, value in filters.items():
-                conditions.append({key: value})
+                if isinstance(value, list):
+                    # Para cuando abarcamos varios valores de un metadato.
+                    conditions.append({key: {"$in": value}})
+                else:
+                    conditions.append({key: value})
             where_clause = {"$and": conditions}
         else:
             where_clause = {"town": town}

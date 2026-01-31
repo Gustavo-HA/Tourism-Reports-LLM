@@ -1,19 +1,14 @@
 #!/usr/bin/env python
 """Test script for the Opportunity Workflow."""
 
-import os
 import sys
 
 from dotenv import load_dotenv
 
-# Ensure project root is in path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from voz_turista.application.opportunity_workflow import OpportunitySession
 
 # Load env vars
 load_dotenv()
-
-from voz_turista.application.opportunity_workflow import OpportunitySession
-
 
 def main():
     # Get pueblo magico from command line or use default

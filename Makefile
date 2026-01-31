@@ -4,7 +4,7 @@
 
 PROJECT_NAME = Tourism-Reports-LLM
 PYTHON_VERSION = 3.12
-PYTHON_INTERPRETER = python
+PYTHON_INTERPRETER = uv run python
 
 #################################################################################
 # COMMANDS                                                                      #

@@ -1,7 +1,6 @@
-import operator
-from typing import Annotated, Dict, List, TypedDict, Union
+from typing import List, TypedDict
 
-from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_core.messages import HumanMessage
 from langgraph.graph import END, StateGraph
 
 from voz_turista.domain.schemas import InsightList, FullReport, AuditResult

@@ -1,6 +1,9 @@
-from typing import Any, Dict, List
-from langchain_google_genai import ChatGoogleGenerativeAI
+from typing import Any, Dict, List, Type, Union
+
 from langchain_core.messages import BaseMessage
+from langchain_google_genai import ChatGoogleGenerativeAI
+from pydantic import BaseModel
+
 from voz_turista.infrastructure.llm_providers.base import LLMProvider
 
 
@@ -18,7 +21,10 @@ class LangChainGoogleProvider(LLMProvider):
         return response.content
 
     def generate_structured(
-        self, messages: List[BaseMessage], schema: Dict[str, Any], **kwargs
+        self,
+        messages: List[BaseMessage],
+        schema: Union[Type[BaseModel], Dict[str, Any]],
+        **kwargs,
     ) -> Any:
         # Gemini soporta salida estructurada mediante with_structured_output
         structured_llm = self.model.with_structured_output(schema)

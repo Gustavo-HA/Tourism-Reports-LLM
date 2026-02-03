@@ -2,7 +2,7 @@
 
 from typing import Any, Dict, List, Literal
 
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
+from langchain_core.messages import HumanMessage
 from langgraph.types import Send
 
 from voz_turista.application.opportunity_workflow.prompts import (
@@ -19,6 +19,14 @@ from voz_turista.application.opportunity_workflow.state import (
     ReportGenerationState,
 )
 from voz_turista.config import settings
+from voz_turista.domain.schemas import (
+    AuditResult,
+    BusinessTypeSynthesis,
+    ConsolidatedReport,
+    ExtractedOpportunityInsightList,
+    ParsedQuery,
+    Review,
+)
 from voz_turista.infrastructure.database.chroma_client import ChromaClient
 from voz_turista.infrastructure.llm_providers.google_provider import (
     LangChainGoogleProvider,
@@ -43,22 +51,33 @@ def _get_chroma_client() -> ChromaClient:
 
 
 def retrieve_reviews_by_type_node(state: ReportGenerationState) -> Dict[str, Any]:
-    """Recupera resenas de ChromaDB para cada tipo de negocio."""
-    print(f"--- Recuperando resenas para {state['pueblo_magico']} ---")
+    """Recupera reseñas de ChromaDB para cada tipo de negocio."""
+    print(f"--- Recuperando reseñas para {state['pueblo_magico']} ---")
 
     chroma_client = _get_chroma_client()
-    reviews_by_type: Dict[str, List] = {}
+    reviews_by_type: Dict[str, List[Review]] = {}
 
     for business_type in BUSINESS_TYPES:
         print(f"  Consultando {business_type}s...")
-        reviews = chroma_client.query_reviews(
+        raw_reviews = chroma_client.query_reviews(
             town=state["pueblo_magico"],
             limit=50,
             filters={"type": business_type},
             text_query="experiencia servicio calidad opinion",
         )
-        reviews_by_type[business_type] = reviews
-        print(f"  -> {len(reviews)} resenas encontradas para {business_type}")
+        # Convert to Review Pydantic models
+        reviews_by_type[business_type] = [
+            Review(
+                id=r["id"],
+                text=r["text"],
+                metadata=r["metadata"],
+                distance=r["distance"],
+            )
+            for r in raw_reviews
+        ]
+        print(
+            f"  -> {len(reviews_by_type[business_type])} reseñas encontradas para {business_type}"
+        )
 
     return {"reviews_by_type": reviews_by_type, "iteration_count": 0}
 
@@ -75,7 +94,9 @@ def prepare_analysis_tasks_node(state: ReportGenerationState) -> List[Send]:
             continue
 
         # Split reviews into chunks
-        chunks = [reviews[i : i + chunk_size] for i in range(0, len(reviews), chunk_size)]
+        chunks = [
+            reviews[i : i + chunk_size] for i in range(0, len(reviews), chunk_size)
+        ]
 
         for i, chunk in enumerate(chunks):
             tasks.append(
@@ -95,11 +116,19 @@ def prepare_analysis_tasks_node(state: ReportGenerationState) -> List[Send]:
 
 
 def extract_opportunities_node(state: BusinessTypeChunkState) -> Dict[str, Any]:
-    """MAP: Extrae insights de oportunidad de un chunk de resenas."""
-    print(f"--- Extrayendo oportunidades: {state['business_type']} chunk {state['chunk_id']} ---")
+    """MAP: Extrae insights de oportunidad de un chunk de reseñas."""
+    print(
+        f"--- Extrayendo oportunidades: {state['business_type']} chunk {state['chunk_id']} ---"
+    )
 
+    # Handle both Review objects and dicts (for compatibility)
     reviews_text = "\n".join(
-        [f"ID: {r['id']} | Calificacion: {r['metadata'].get('polarity', 'N/A')} | Texto: {r['text']}" for r in state["reviews"]]
+        [
+            f"ID: {r.id if hasattr(r, 'id') else r['id']} | "
+            f"Calificacion: {(r.metadata if hasattr(r, 'metadata') else r['metadata']).get('polarity', 'N/A')} | "
+            f"Texto: {r.text if hasattr(r, 'text') else r['text']}"
+            for r in state["reviews"]
+        ]
     )
 
     prompt = PROMPT_EXTRACT_OPPORTUNITIES.format(
@@ -108,38 +137,17 @@ def extract_opportunities_node(state: BusinessTypeChunkState) -> Dict[str, Any]:
         reviews=reviews_text,
     )
 
-    schema = {
-        "title": "OpportunityInsights",
-        "type": "object",
-        "properties": {
-            "insights": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "properties": {
-                        "idx_review": {"type": "array", "items": {"type": "string"}},
-                        "insight": {"type": "string"},
-                        "category": {
-                            "type": "string",
-                            "enum": ["Infraestructura", "Servicio", "Experiencia", "Precio", "Ubicacion", "Limpieza"],
-                        },
-                        "priority": {"type": "string", "enum": ["Alta", "Media", "Baja"]},
-                        "actionable_suggestion": {"type": "string"},
-                    },
-                    "required": ["idx_review", "insight", "category", "priority", "actionable_suggestion"],
-                },
-            }
-        },
-        "required": ["insights"],
-    }
-
     try:
-        response = llm_provider.generate_structured(messages=[HumanMessage(content=prompt)], schema=schema)
-        # Add business_type to each insight
+        response: ExtractedOpportunityInsightList = llm_provider.generate_structured(
+            messages=[HumanMessage(content=prompt)],
+            schema=ExtractedOpportunityInsightList,
+        )
+        # Add business_type to each insight and convert to dict for state accumulation
         insights = []
-        for insight in response.get("insights", []):
-            insight["business_type"] = state["business_type"]
-            insights.append(insight)
+        for insight in response.insights:
+            insight_dict = insight.model_dump()
+            insight_dict["business_type"] = state["business_type"]
+            insights.append(insight_dict)
         return {"insights": insights}
     except Exception as e:
         print(f"Error en {state['business_type']} chunk {state['chunk_id']}: {e}")
@@ -154,53 +162,54 @@ def synthesize_reports_node(state: ReportGenerationState) -> Dict[str, Any]:
 
     for business_type in BUSINESS_TYPES:
         # Filter insights for this business type
-        type_insights = [i for i in state["insights"] if i.get("business_type") == business_type]
+        type_insights = [
+            i for i in state["insights"] if i.get("business_type") == business_type
+        ]
+
+        # Get reviews count (handle both Review objects and dicts)
+        reviews_list = state["reviews_by_type"].get(business_type, [])
+        total_reviews = len(reviews_list)
 
         if not type_insights:
             business_reports[business_type] = {
                 "business_type": business_type,
-                "total_reviews_analyzed": len(state["reviews_by_type"].get(business_type, [])),
+                "total_reviews_analyzed": total_reviews,
                 "opportunity_areas": [],
                 "strengths": [],
-                "summary": "No se encontraron suficientes resenas para analizar.",
+                "summary": "No se encontraron suficientes reseñas para analizar.",
             }
             continue
 
         insights_text = "\n".join(
-            [f"- [{i['priority']}] {i['insight']} (Categoria: {i['category']}) -> Sugerencia: {i['actionable_suggestion']}" for i in type_insights]
+            [
+                f"- [{i['priority']}] {i['insight']} (Categoría: {i['category']}) -> Sugerencia: {i['actionable_suggestion']}"
+                for i in type_insights
+            ]
         )
 
         prompt = PROMPT_SYNTHESIZE_OPPORTUNITIES.format(
             business_type=business_type,
             pueblo_magico=state["pueblo_magico"],
             insights=insights_text,
-            total_reviews=len(state["reviews_by_type"].get(business_type, [])),
+            total_reviews=total_reviews,
         )
 
-        schema = {
-            "title": "BusinessTypeReport",
-            "type": "object",
-            "properties": {
-                "summary": {"type": "string"},
-                "strengths": {"type": "array", "items": {"type": "string"}},
-            },
-            "required": ["summary", "strengths"],
-        }
-
         try:
-            response = llm_provider.generate_structured(messages=[HumanMessage(content=prompt)], schema=schema)
+            response: BusinessTypeSynthesis = llm_provider.generate_structured(
+                messages=[HumanMessage(content=prompt)], schema=BusinessTypeSynthesis
+            )
             business_reports[business_type] = {
                 "business_type": business_type,
-                "total_reviews_analyzed": len(state["reviews_by_type"].get(business_type, [])),
+                "total_reviews_analyzed": total_reviews,
                 "opportunity_areas": type_insights,
-                "strengths": response.get("strengths", []),
-                "summary": response.get("summary", ""),
+                "strengths": response.strengths,
+                "summary": response.summary,
             }
         except Exception as e:
             print(f"Error sintetizando {business_type}: {e}")
             business_reports[business_type] = {
                 "business_type": business_type,
-                "total_reviews_analyzed": len(state["reviews_by_type"].get(business_type, [])),
+                "total_reviews_analyzed": total_reviews,
                 "opportunity_areas": type_insights,
                 "strengths": [],
                 "summary": f"Error al generar resumen: {e}",
@@ -217,7 +226,7 @@ def consolidate_report_node(state: ReportGenerationState) -> Dict[str, Any]:
     reports_text = ""
     for btype, report in state["business_reports"].items():
         reports_text += f"\n## {btype}\n"
-        reports_text += f"Resenas analizadas: {report['total_reviews_analyzed']}\n"
+        reports_text += f"Reseñas analizadas: {report['total_reviews_analyzed']}\n"
         reports_text += f"Resumen: {report['summary']}\n"
         reports_text += f"Fortalezas: {', '.join(report['strengths'])}\n"
         reports_text += f"Oportunidades ({len(report['opportunity_areas'])}):\n"
@@ -229,37 +238,22 @@ def consolidate_report_node(state: ReportGenerationState) -> Dict[str, Any]:
         business_reports=reports_text,
     )
 
-    schema = {
-        "title": "ConsolidatedReport",
-        "type": "object",
-        "properties": {
-            "executive_summary": {"type": "string"},
-            "cross_cutting_opportunities": {"type": "array", "items": {"type": "string"}},
-            "priority_matrix": {
-                "type": "object",
-                "properties": {
-                    "high_urgency_high_impact": {"type": "array", "items": {"type": "string"}},
-                    "high_urgency_low_impact": {"type": "array", "items": {"type": "string"}},
-                    "low_urgency_high_impact": {"type": "array", "items": {"type": "string"}},
-                    "low_urgency_low_impact": {"type": "array", "items": {"type": "string"}},
-                },
-            },
-            "recommended_actions": {"type": "array", "items": {"type": "string"}, "maxItems": 5},
-        },
-        "required": ["executive_summary", "cross_cutting_opportunities", "recommended_actions"],
-    }
-
     try:
-        response = llm_provider.generate_structured(messages=[HumanMessage(content=prompt)], schema=schema)
-        # Add business reports to consolidated report
-        response["by_business_type"] = state["business_reports"]
-        response["pueblo_magico"] = state["pueblo_magico"]
-        return {"consolidated_report": response}
+        response: ConsolidatedReport = llm_provider.generate_structured(
+            messages=[HumanMessage(content=prompt)], schema=ConsolidatedReport
+        )
+        # Convert to dict and add business reports context
+        consolidated = response.model_dump()
+        consolidated["by_business_type"] = state["business_reports"]
+        consolidated["pueblo_magico"] = state["pueblo_magico"]
+        return {"consolidated_report": consolidated}
     except Exception as e:
         print(f"Error consolidando reporte: {e}")
         return {
             "consolidated_report": {
                 "executive_summary": f"Error al generar reporte: {e}",
+                "cross_cutting_opportunities": [],
+                "recommended_actions": [],
                 "by_business_type": state["business_reports"],
                 "pueblo_magico": state["pueblo_magico"],
             }
@@ -272,12 +266,17 @@ def audit_report_node(state: ReportGenerationState) -> Dict[str, Any]:
 
     report_str = str(state["consolidated_report"])
 
-    # Collect sample evidence from all business types
+    # Collect sample evidence from all business types (handle both Review objects and dicts)
     evidence_reviews = []
     for reviews in state["reviews_by_type"].values():
         evidence_reviews.extend(reviews[:5])
 
-    evidence_text = "\n".join([f"- {r['text']}" for r in evidence_reviews[:15]])
+    evidence_text = "\n".join(
+        [
+            f"- {r.text if hasattr(r, 'text') else r['text']}"
+            for r in evidence_reviews[:15]
+        ]
+    )
 
     prompt = PROMPT_AUDIT_REPORT.format(
         pueblo_magico=state["pueblo_magico"],
@@ -285,38 +284,33 @@ def audit_report_node(state: ReportGenerationState) -> Dict[str, Any]:
         evidence=evidence_text,
     )
 
-    schema = {
-        "title": "AuditResult",
-        "type": "object",
-        "properties": {
-            "status": {"type": "string", "enum": ["APROBADO", "RECHAZADO"]},
-            "corrections": {"type": "array", "items": {"type": "string"}},
-            "confidence_score": {"type": "number"},
-        },
-        "required": ["status"],
-    }
-
     try:
-        response = llm_provider.generate_structured(messages=[HumanMessage(content=prompt)], schema=schema)
+        response: AuditResult = llm_provider.generate_structured(
+            messages=[HumanMessage(content=prompt)], schema=AuditResult
+        )
         return {
-            "audit_result": response,
+            "audit_result": response.model_dump(),
             "iteration_count": state.get("iteration_count", 0) + 1,
         }
     except Exception as e:
-        print(f"Error en auditoria: {e}")
+        print(f"Error en auditoría: {e}")
         return {
             "audit_result": {"status": "APROBADO", "corrections": [], "error": str(e)},
             "iteration_count": state.get("iteration_count", 0) + 1,
         }
 
 
-def route_after_audit(state: ReportGenerationState) -> Literal["end", "consolidate_report"]:
+def route_after_audit(
+    state: ReportGenerationState,
+) -> Literal["end", "consolidate_report"]:
     """Decide si terminar o regenerar el reporte."""
     audit = state.get("audit_result", {})
     iteration = state.get("iteration_count", 0)
 
     if audit.get("status") == "APROBADO" or iteration >= 3:
-        print(f"--- Reporte {'aprobado' if audit.get('status') == 'APROBADO' else 'max iteraciones'} ---")
+        print(
+            f"--- Reporte {'aprobado' if audit.get('status') == 'APROBADO' else 'max iteraciones'} ---"
+        )
         return "end"
     else:
         print(f"--- Reporte rechazado, iteracion {iteration}/3 ---")
@@ -335,22 +329,13 @@ def parse_user_query_node(state: ChatState) -> Dict[str, Any]:
         user_query=state["user_message"],
     )
 
-    schema = {
-        "title": "ParsedQuery",
-        "type": "object",
-        "properties": {
-            "text_query": {"type": "string"},
-            "filters": {"type": "object"},
-            "requires_report_context": {"type": "boolean"},
-        },
-        "required": ["text_query", "filters", "requires_report_context"],
-    }
-
     try:
-        response = llm_provider.generate_structured(messages=[HumanMessage(content=prompt)], schema=schema)
+        response: ParsedQuery = llm_provider.generate_structured(
+            messages=[HumanMessage(content=prompt)], schema=ParsedQuery
+        )
         return {
-            "text_query": response.get("text_query", state["user_message"]),
-            "parsed_filters": response.get("filters", {}),
+            "text_query": response.text_query or state["user_message"],
+            "parsed_filters": response.filters,
         }
     except Exception as e:
         print(f"Error parseando consulta: {e}")
@@ -367,12 +352,22 @@ def execute_query_node(state: ChatState) -> Dict[str, Any]:
     chroma_client = _get_chroma_client()
 
     try:
-        reviews = chroma_client.query_reviews(
+        raw_reviews = chroma_client.query_reviews(
             town=state["pueblo_magico"],
             limit=20,
             filters=state.get("parsed_filters") or None,
             text_query=state.get("text_query", state["user_message"]),
         )
+        # Convert to Review Pydantic models
+        reviews = [
+            Review(
+                id=r["id"],
+                text=r["text"],
+                metadata=r["metadata"],
+                distance=r["distance"],
+            )
+            for r in raw_reviews
+        ]
         return {"query_results": reviews}
     except Exception as e:
         print(f"Error ejecutando consulta: {e}")
@@ -383,22 +378,30 @@ def generate_response_node(state: ChatState) -> Dict[str, Any]:
     """Genera la respuesta del chat."""
     print("--- Generando respuesta ---")
 
-    # Format report summary
+    # Format report summary (handle both dict and Pydantic model)
     report = state.get("consolidated_report", {})
+    if hasattr(report, "model_dump"):
+        report = report.model_dump()
+
     report_summary = f"""
-Pueblo Magico: {report.get('pueblo_magico', state['pueblo_magico'])}
-Resumen Ejecutivo: {report.get('executive_summary', 'No disponible')}
-Oportunidades Transversales: {', '.join(report.get('cross_cutting_opportunities', [])[:3])}
+Pueblo Mágico: {report.get("pueblo_magico", state["pueblo_magico"])}
+Resumen Ejecutivo: {report.get("executive_summary", "No disponible")}
+Oportunidades Transversales: {", ".join(report.get("cross_cutting_opportunities", [])[:3])}
 """
 
-    # Format query results
+    # Format query results (handle both Review objects and dicts)
     results = state.get("query_results", [])
     if results:
         results_text = "\n".join(
-            [f"- [{r['metadata'].get('type', 'N/A')}] (Cal: {r['metadata'].get('polarity', 'N/A')}) {r['text'][:200]}..." for r in results[:10]]
+            [
+                f"- [{(r.metadata if hasattr(r, 'metadata') else r['metadata']).get('type', 'N/A')}] "
+                f"(Cal: {(r.metadata if hasattr(r, 'metadata') else r['metadata']).get('polarity', 'N/A')}) "
+                f"{(r.text if hasattr(r, 'text') else r['text'])[:200]}..."
+                for r in results[:10]
+            ]
         )
     else:
-        results_text = "No se encontraron resenas que coincidan con la consulta."
+        results_text = "No se encontraron reseñas que coincidan con la consulta."
 
     # Format chat history
     messages = state.get("messages", [])
@@ -421,4 +424,4 @@ Oportunidades Transversales: {', '.join(report.get('cross_cutting_opportunities'
         return {"response": response}
     except Exception as e:
         print(f"Error generando respuesta: {e}")
-        return {"response": f"Lo siento, ocurrio un error al procesar tu consulta: {e}"}
+        return {"response": f"Lo siento, ocurrió un error al procesar tu consulta: {e}"}

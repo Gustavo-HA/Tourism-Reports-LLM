@@ -95,20 +95,38 @@ class OpportunitySession:
 
         summary = f"""
 {'='*60}
-REPORTE DE OPORTUNIDADES: {self.report.get('pueblo_magico', self.pueblo_magico)}
+BRIEFING DE COMPETITIVIDAD ESTRATEGICA: {self.report.get('pueblo_magico', self.pueblo_magico)}
 {'='*60}
 
 RESUMEN EJECUTIVO:
 {self.report.get('executive_summary', 'No disponible')}
 
-OPORTUNIDADES TRANSVERSALES:
+SCORECARD DE EFICIENCIA TURISTICA:
 """
+        scorecard = self.report.get("scorecard", {})
+        for pilar in ["infraestructura", "servicios", "atractivos"]:
+            pilar_data = scorecard.get(pilar, {})
+            if isinstance(pilar_data, dict):
+                score = pilar_data.get("score", "N/A")
+                justification = pilar_data.get("justification", "")
+                summary += f"  {pilar.upper()}: {score}/10 — {justification}\n"
+
+        summary += "\nDIAGNOSTICO DE BRECHAS:\n"
+        for gap in self.report.get("gap_diagnosis", []):
+            summary += f"  - {gap}\n"
+
+        summary += "\nHOJA DE RUTA:\n"
+        roadmap = self.report.get("roadmap", {})
+        summary += "  Inversion Publica:\n"
+        for action in (roadmap.get("inversion_publica") or []):
+            summary += f"    - {action}\n"
+        summary += "  Capacitacion Privada:\n"
+        for action in (roadmap.get("capacitacion_privada") or []):
+            summary += f"    - {action}\n"
+
+        summary += "\nOPORTUNIDADES TRANSVERSALES:\n"
         for opp in self.report.get("cross_cutting_opportunities", []):
             summary += f"  - {opp}\n"
-
-        summary += "\nACCIONES RECOMENDADAS:\n"
-        for i, action in enumerate(self.report.get("recommended_actions", [])[:5], 1):
-            summary += f"  {i}. {action}\n"
 
         summary += f"\n{'='*60}\n"
         summary += "POR TIPO DE NEGOCIO:\n"
@@ -117,7 +135,8 @@ OPORTUNIDADES TRANSVERSALES:
             summary += f"\n{btype}:\n"
             summary += f"  Resenas analizadas: {breport.get('total_reviews_analyzed', 0)}\n"
             summary += f"  Resumen: {breport.get('summary', 'N/A')[:200]}...\n"
-            summary += f"  Oportunidades: {len(breport.get('opportunity_areas', []))}\n"
+            summary += f"  Hallazgos: {len(breport.get('opportunity_areas', []))}\n"
+            summary += f"  Brechas: {len(breport.get('gap_diagnosis', []))}\n"
 
         return summary
 

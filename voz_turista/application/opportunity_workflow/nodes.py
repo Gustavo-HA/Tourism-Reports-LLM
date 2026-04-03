@@ -182,7 +182,7 @@ def synthesize_reports_node(state: ReportGenerationState) -> Dict[str, Any]:
 
         insights_text = "\n".join(
             [
-                f"- [{i['priority']}] {i['insight']} (Categoría: {i['category']}) -> Sugerencia: {i['actionable_suggestion']}"
+                f"- [{i['urgencia']}] {i['insight']} (Atribución: {i['atribucion']}, Dimensión: {i['dimension']}) -> Sugerencia: {i['actionable_suggestion']}"
                 for i in type_insights
             ]
         )
@@ -203,6 +203,7 @@ def synthesize_reports_node(state: ReportGenerationState) -> Dict[str, Any]:
                 "total_reviews_analyzed": total_reviews,
                 "opportunity_areas": type_insights,
                 "strengths": response.strengths,
+                "gap_diagnosis": response.gap_diagnosis,
                 "summary": response.summary,
             }
         except Exception as e:
@@ -212,6 +213,7 @@ def synthesize_reports_node(state: ReportGenerationState) -> Dict[str, Any]:
                 "total_reviews_analyzed": total_reviews,
                 "opportunity_areas": type_insights,
                 "strengths": [],
+                "gap_diagnosis": [],
                 "summary": f"Error al generar resumen: {e}",
             }
 
@@ -229,9 +231,10 @@ def consolidate_report_node(state: ReportGenerationState) -> Dict[str, Any]:
         reports_text += f"Reseñas analizadas: {report['total_reviews_analyzed']}\n"
         reports_text += f"Resumen: {report['summary']}\n"
         reports_text += f"Fortalezas: {', '.join(report['strengths'])}\n"
-        reports_text += f"Oportunidades ({len(report['opportunity_areas'])}):\n"
+        reports_text += f"Brechas: {'; '.join(report.get('gap_diagnosis', []))}\n"
+        reports_text += f"Hallazgos ({len(report['opportunity_areas'])}):\n"
         for opp in report["opportunity_areas"][:5]:  # Top 5
-            reports_text += f"  - [{opp['priority']}] {opp['insight']}\n"
+            reports_text += f"  - [{opp['urgencia']}] ({opp['atribucion']}/{opp['dimension']}) {opp['insight']}\n"
 
     prompt = PROMPT_CONSOLIDATE_REPORT.format(
         pueblo_magico=state["pueblo_magico"],
@@ -252,8 +255,10 @@ def consolidate_report_node(state: ReportGenerationState) -> Dict[str, Any]:
         return {
             "consolidated_report": {
                 "executive_summary": f"Error al generar reporte: {e}",
+                "scorecard": {},
+                "gap_diagnosis": [],
+                "roadmap": {"inversion_publica": [], "capacitacion_privada": []},
                 "cross_cutting_opportunities": [],
-                "recommended_actions": [],
                 "by_business_type": state["business_reports"],
                 "pueblo_magico": state["pueblo_magico"],
             }
@@ -383,9 +388,20 @@ def generate_response_node(state: ChatState) -> Dict[str, Any]:
     if hasattr(report, "model_dump"):
         report = report.model_dump()
 
+    scorecard = report.get("scorecard", {})
+    scorecard_text = ", ".join(
+        f"{p}: {scorecard.get(p, {}).get('score', 'N/A')}/10"
+        for p in ["infraestructura", "servicios", "atractivos"]
+        if isinstance(scorecard.get(p), dict)
+    )
+    roadmap = report.get("roadmap", {})
     report_summary = f"""
 Pueblo Mágico: {report.get("pueblo_magico", state["pueblo_magico"])}
 Resumen Ejecutivo: {report.get("executive_summary", "No disponible")}
+Scorecard: {scorecard_text or "No disponible"}
+Brechas: {"; ".join(report.get("gap_diagnosis", [])[:3])}
+Inversión Pública: {"; ".join((roadmap.get("inversion_publica") or [])[:3])}
+Capacitación Privada: {"; ".join((roadmap.get("capacitacion_privada") or [])[:3])}
 Oportunidades Transversales: {", ".join(report.get("cross_cutting_opportunities", [])[:3])}
 """
 

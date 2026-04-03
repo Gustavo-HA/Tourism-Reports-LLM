@@ -1,7 +1,7 @@
 """Prompt templates for the Opportunity Workflow."""
 
 PROMPT_EXTRACT_OPPORTUNITIES = """
-Analiza las siguientes resenas de {business_type}s en {pueblo_magico} e identifica AREAS DE OPORTUNIDAD.
+Analiza las siguientes resenas de {business_type}s en {pueblo_magico} y extrae hallazgos accionables para un briefing de inteligencia turistica dirigido a autoridades.
 
 Busca patrones en:
 1. Quejas recurrentes o problemas sistematicos
@@ -9,26 +9,30 @@ Busca patrones en:
 3. Comparaciones negativas con otros destinos
 4. Sugerencias explicitas de los visitantes
 5. Expectativas no cumplidas
+6. Recursos naturales o culturales infrautilizados
 
-Para cada oportunidad identificada, proporciona:
+Para cada hallazgo, proporciona:
 - idx_review: IDs de las resenas que sustentan el hallazgo
-- insight: Descripcion concisa del area de mejora
-- category: Una de [Infraestructura, Servicio, Experiencia, Precio, Ubicacion, Limpieza]
-- priority: Alta (afecta satisfaccion general), Media (molestia frecuente), Baja (mejora nice-to-have)
-- actionable_suggestion: Una accion concreta para abordar la oportunidad
+- insight: Hallazgo conciso y accionable
+- atribucion: Publica (infraestructura, senalizacion, seguridad, servicios basicos del gobierno) o Privada (gestion de negocios, calidad de servicio, capacitacion del personal)
+- dimension: Una de [Recurso Natural, Servicio de Soporte, Gestion de Destino]
+  - Recurso Natural: Playas, cenotes, areas naturales, patrimonio cultural, clima
+  - Servicio de Soporte: Hospedaje, restaurantes, transporte, guias, comercio
+  - Gestion de Destino: Planeacion, promocion, regulacion, limpieza urbana, seguridad
+- urgencia: Alta (impacto directo en competitividad turistica), Media (molestia frecuente que afecta percepcion), Baja (mejora deseable pero no critica)
+- actionable_suggestion: Una accion concreta para abordar el hallazgo
 
-Resenas a analizar:
+Reseñas a analizar:
 {reviews}
 """
 
 PROMPT_SYNTHESIZE_OPPORTUNITIES = """
-Genera un reporte de oportunidades para {business_type}s en {pueblo_magico} basado en los insights recopilados.
+Genera un reporte de inteligencia turistica para {business_type}s en {pueblo_magico} dirigido a autoridades.
 
-Estructura del reporte:
-1. summary: Resumen ejecutivo (2-3 oraciones) de las principales oportunidades
-2. opportunity_areas: Lista de las oportunidades mas importantes (ya proporcionadas)
-3. strengths: Lista de 3-5 fortalezas identificadas en las resenas
-4. total_reviews_analyzed: Numero total de resenas analizadas
+Basandote en los insights recopilados, genera:
+1. summary: Resumen ejecutivo (2-3 oraciones) de los principales hallazgos para este tipo de negocio
+2. strengths: Lista de 3-5 fortalezas identificadas
+3. gap_diagnosis: Lista de 3-5 brechas criticas — recursos infrautilizados por fallas publicas (gobierno/infraestructura) o privadas (gestion de negocios). Indica claramente si la brecha es de atribucion Publica o Privada.
 
 Insights recopilados:
 {insights}
@@ -37,14 +41,24 @@ Total de resenas analizadas: {total_reviews}
 """
 
 PROMPT_CONSOLIDATE_REPORT = """
-Genera un reporte consolidado de oportunidades para {pueblo_magico} combinando los hallazgos de todos los tipos de negocio.
+Genera un Briefing de Competitividad Estrategica para las autoridades turisticas de {pueblo_magico}, combinando los hallazgos de todos los tipos de negocio.
 
-Estructura del reporte final:
-1. executive_summary: Vision general de las principales oportunidades del destino (3-4 oraciones)
-2. by_business_type: Resumen de oportunidades por tipo (Hotel, Restaurant, Attractive)
-3. cross_cutting_opportunities: Patrones que afectan a multiples tipos de negocio
-4. priority_matrix: Clasificacion de acciones por urgencia e impacto
-5. recommended_actions: Top 5 acciones concretas priorizadas
+Estructura del briefing:
+
+1. executive_summary: Vision general del destino — principales fortalezas, debilidades criticas y posicion competitiva (3-4 oraciones).
+
+2. scorecard: Scorecard de Eficiencia Turistica. Califica del 1 al 10 cada pilar con una justificacion breve basada en la evidencia:
+   - infraestructura: Transporte, senalizacion, accesos, servicios basicos
+   - servicios: Hospedaje, restaurantes, guias, atencion al turista
+   - atractivos: Recursos naturales, culturales, experiencias ofrecidas
+
+3. gap_diagnosis: Diagnostico de Brechas (5-8 items). Identifica recursos infrautilizados por fallas macro (publicas: gobierno, infraestructura) o micro (privadas: gestion de negocios). Cada brecha debe ser especifica y accionable.
+
+4. roadmap: Hoja de Ruta con acciones priorizadas:
+   - inversion_publica: 3-5 acciones concretas que requieren inversion o gestion publica
+   - capacitacion_privada: 3-5 acciones concretas para capacitacion o mejora del sector privado
+
+5. cross_cutting_opportunities: Patrones transversales que afectan a multiples tipos de negocio (3-5 items).
 
 Reportes por tipo de negocio:
 {business_reports}

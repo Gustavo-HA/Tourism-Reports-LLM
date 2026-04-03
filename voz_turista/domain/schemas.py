@@ -84,12 +84,15 @@ class ExtractedOpportunityInsight(BaseModel):
     idx_review: List[str] = Field(
         description="IDs de las reseñas que sustentan este insight."
     )
-    insight: str = Field(description="Descripción del hallazgo u oportunidad.")
-    category: Literal[
-        "Infraestructura", "Servicio", "Experiencia", "Precio", "Ubicacion", "Limpieza"
-    ] = Field(description="Categoría del insight.")
-    priority: Literal["Alta", "Media", "Baja"] = Field(
-        description="Nivel de prioridad/urgencia."
+    insight: str = Field(description="Hallazgo conciso y accionable.")
+    atribucion: Literal["Publica", "Privada"] = Field(
+        description="Clasifica si el problema/oportunidad recae en el gobierno (Publica) o en los negocios privados (Privada)."
+    )
+    dimension: Literal[
+        "Recurso Natural", "Servicio de Soporte", "Gestion de Destino"
+    ] = Field(description="Dimensión del hallazgo.")
+    urgencia: Literal["Alta", "Media", "Baja"] = Field(
+        description="Nivel de urgencia según el impacto en la competitividad turística."
     )
     actionable_suggestion: str = Field(
         description="Sugerencia accionable para abordar el insight."
@@ -133,37 +136,62 @@ class BusinessTypeSynthesis(BaseModel):
 
     summary: str = Field(description="Resumen ejecutivo de la sección.")
     strengths: List[str] = Field(description="Fortalezas identificadas.")
+    gap_diagnosis: List[str] = Field(
+        description="Brechas identificadas: recursos infrautilizados por fallas públicas o privadas."
+    )
 
 
-class PriorityMatrix(BaseModel):
-    """Matriz de priorización urgencia/impacto."""
+class PillarScore(BaseModel):
+    """Calificación de un pilar del scorecard."""
 
-    high_urgency_high_impact: List[str] = Field(
-        default_factory=list, description="Acciones urgentes y de alto impacto."
+    score: int = Field(description="Calificación del 1 al 10.", ge=1, le=10)
+    justification: str = Field(
+        description="Justificación breve de la calificación basada en evidencia."
     )
-    high_urgency_low_impact: List[str] = Field(
-        default_factory=list, description="Acciones urgentes pero de bajo impacto."
+
+
+class Scorecard(BaseModel):
+    """Scorecard de Eficiencia Turística por pilares."""
+
+    infraestructura: PillarScore = Field(
+        description="Evaluación de infraestructura (transporte, señalización, accesos, servicios básicos)."
     )
-    low_urgency_high_impact: List[str] = Field(
-        default_factory=list, description="Acciones de alto impacto pero no urgentes."
+    servicios: PillarScore = Field(
+        description="Evaluación de servicios turísticos (hospedaje, restaurantes, guías, atención)."
     )
-    low_urgency_low_impact: List[str] = Field(
-        default_factory=list, description="Acciones de bajo impacto y baja urgencia."
+    atractivos: PillarScore = Field(
+        description="Evaluación de atractivos (recursos naturales, culturales, experiencias)."
+    )
+
+
+class RoadmapActions(BaseModel):
+    """Acciones de la hoja de ruta separadas por atribución."""
+
+    inversion_publica: List[str] = Field(
+        description="Acciones concretas que requieren inversión o gestión pública (3-5 acciones)."
+    )
+    capacitacion_privada: List[str] = Field(
+        description="Acciones concretas para capacitación o mejora del sector privado (3-5 acciones)."
     )
 
 
 class ConsolidatedReport(BaseModel):
-    """Reporte consolidado final del análisis de oportunidades."""
+    """Briefing de Competitividad Estratégica para autoridades turísticas."""
 
-    executive_summary: str = Field(description="Resumen ejecutivo del análisis.")
+    executive_summary: str = Field(
+        description="Visión general del destino y principales hallazgos (3-4 oraciones)."
+    )
+    scorecard: Scorecard = Field(
+        description="Scorecard de Eficiencia Turística con calificación 1-10 por pilar."
+    )
+    gap_diagnosis: List[str] = Field(
+        description="Diagnóstico de brechas: recursos infrautilizados por fallas macro (públicas) o micro (privadas)."
+    )
+    roadmap: RoadmapActions = Field(
+        description="Hoja de ruta: priorización de inversión pública vs capacitación privada."
+    )
     cross_cutting_opportunities: List[str] = Field(
-        description="Oportunidades transversales identificadas."
-    )
-    priority_matrix: Optional[PriorityMatrix] = Field(
-        default=None, description="Matriz de priorización."
-    )
-    recommended_actions: List[str] = Field(
-        description="Acciones recomendadas (máximo 5)."
+        description="Patrones transversales que afectan a múltiples tipos de negocio."
     )
 
 

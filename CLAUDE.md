@@ -29,15 +29,30 @@ make sync_data_up
 python scripts/test_workflow.py
 ```
 
+## Dependency Management
+
+This project uses [uv](https://docs.astral.sh/uv/) as its package manager. Dependencies are declared in `pyproject.toml` and locked in `uv.lock`. Key commands:
+- `uv sync` — install/update all dependencies from the lockfile
+- `uv add <package>` — add a new dependency
+- `uv remove <package>` — remove a dependency
+- `uv run <command>` — run a command within the managed environment
+
+The `make requirements` target wraps `uv sync`.
+
 ## Environment Setup
 
-Requires a `.env` file with:
-- `GEMINI_API_KEY` - Google Generative AI API key
+Requires a `.env` file with the API key for your chosen LLM provider. LiteLLM reads keys from standard env vars:
+- `GEMINI_API_KEY` - Google Gemini
+- `OPENAI_API_KEY` - OpenAI
+- `ANTHROPIC_API_KEY` - Anthropic
+- `GROQ_API_KEY` - Groq
 
 Default settings in `voz_turista/config.py`:
-- LLM: `gemini-2.5-pro`
+- LLM: `gemini/gemini-2.5-flash` (litellm model format)
 - Embedding model: `hiiamsid/sentence_similarity_spanish_es`
 - Vector DB path: `data/vectordb`
+
+To use a different provider, set `LLM_MODEL` in `.env` (e.g., `LLM_MODEL=groq/llama-3.1-70b-versatile`).
 
 ## Architecture
 
@@ -61,7 +76,7 @@ Two workflow implementations exist:
 - `prompts/templates.py` - LLM prompt templates for extraction, synthesis, and auditing
 
 **Infrastructure Layer** (`voz_turista/infrastructure/`):
-- `llm_providers/` - Abstract `LLMProvider` base class with Google Gemini implementation
+- `llm_providers/` - Abstract `LLMProvider` base class with LiteLLM implementation (provider-agnostic)
 - `database/chroma_client.py` - ChromaDB wrapper with HNSW cosine similarity, chunking support, and batch ingestion
 
 **Application Layer** (`voz_turista/application/`):
@@ -74,7 +89,7 @@ Reviews are stored in ChromaDB with metadata: `town`, `polarity`, `type` (Hotel/
 
 ### Structured Output
 
-LLM responses use `with_structured_output()` to enforce JSON schemas. Insights are classified by:
+LLM responses use LiteLLM's `response_format` with Pydantic models to enforce structured output. Insights are classified by:
 - `atribucion`: Pública (government) vs Privada (business)
 - `dimension`: Recurso Natural, Servicio de Soporte, Gestión de Destino
 - `urgencia`: Alta, Media, Baja

@@ -6,7 +6,8 @@ from langgraph.graph import END, StateGraph
 from voz_turista.domain.schemas import InsightList, FullReport, AuditResult
 from voz_turista.domain.prompts.templates import SYSTEM_PROMPT_EXTRACT, SYSTEM_PROMPT_SYNTHESIZE, SYSTEM_PROMPT_AUDITOR
 from voz_turista.infrastructure.database.chroma_client import ChromaClient
-from voz_turista.infrastructure.llm_providers.google_provider import LangChainGoogleProvider
+from voz_turista.config import settings
+from voz_turista.infrastructure.llm_providers.litellm_provider import LiteLLMProvider
 
 # --- State ---
 class ReportState(TypedDict):
@@ -60,7 +61,7 @@ def analyze_category(state: ReportState, category: str, output_key: str):
 
     reviews_text = "\n\n".join(reviews)
     
-    llm = LangChainGoogleProvider()
+    llm = LiteLLMProvider(model_name=settings.LLM_MODEL, temperature=settings.LLM_TEMPERATURE)
     prompt = SYSTEM_PROMPT_EXTRACT.format(pueblo_magico=town, reviews=reviews_text)
     
     try:
@@ -93,7 +94,7 @@ def synthesize_report(state: ReportState):
     
     insights_text = str(all_insights) # Dump as string representation
     
-    llm = LangChainGoogleProvider()
+    llm = LiteLLMProvider(model_name=settings.LLM_MODEL, temperature=settings.LLM_TEMPERATURE)
     prompt = SYSTEM_PROMPT_SYNTHESIZE.format(pueblo_magico=town, insights=insights_text)
     
     try:
@@ -119,7 +120,7 @@ def audit_report(state: ReportState):
     )
     evidence_text = "\n\n".join(evidence)
     
-    llm = LangChainGoogleProvider()
+    llm = LiteLLMProvider(model_name=settings.LLM_MODEL, temperature=settings.LLM_TEMPERATURE)
     prompt = SYSTEM_PROMPT_AUDITOR.format(
         pueblo_magico=town, 
         report=str(report), 

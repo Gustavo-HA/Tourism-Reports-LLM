@@ -9,15 +9,14 @@ from voz_turista.domain.prompts.templates import (
     SYSTEM_PROMPT_AUDITOR,
 )
 from voz_turista.infrastructure.database.chroma_client import ChromaClient
-from voz_turista.infrastructure.llm_providers.google_provider import (
-    LangChainGoogleProvider,
-)
+from voz_turista.infrastructure.llm_providers.litellm_provider import LiteLLMProvider
 from voz_turista.config import settings
 
 # Inicialización de servicios (Idealmente inyectados)
-# Nota: Se asume que las variables de entorno están configuradas
 
-llm_provider = LangChainGoogleProvider(model_name=settings.LLM_ORCHESTRATOR)
+llm_provider = LiteLLMProvider(
+    model_name=settings.LLM_MODEL, temperature=settings.LLM_TEMPERATURE
+)
 
 chroma_client = ChromaClient(persist_directory=settings.VECTOR_DB_PATH)
 

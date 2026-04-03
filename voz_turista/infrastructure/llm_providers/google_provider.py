@@ -12,7 +12,7 @@ class LangChainGoogleProvider(LLMProvider):
     Implementación de LLMProvider usando LangChain y Google Generative AI (Gemini).
     """
 
-    def __init__(self, model_name: str = "gemini-2.5-pro", temperature: float = 0.0):
+    def __init__(self, model_name, temperature: float = 0.0):
         # Se asume que GOOGLE_API_KEY está en las variables de entorno
         self.model = ChatGoogleGenerativeAI(model=model_name, temperature=temperature)
 

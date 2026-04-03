@@ -28,12 +28,12 @@ from voz_turista.domain.schemas import (
     Review,
 )
 from voz_turista.infrastructure.database.chroma_client import ChromaClient
-from voz_turista.infrastructure.llm_providers.google_provider import (
-    LangChainGoogleProvider,
-)
+from voz_turista.infrastructure.llm_providers.litellm_provider import LiteLLMProvider
 
 # Service initialization
-llm_provider = LangChainGoogleProvider(model_name=settings.LLM_ORCHESTRATOR)
+llm_provider = LiteLLMProvider(
+    model_name=settings.LLM_MODEL, temperature=settings.LLM_TEMPERATURE
+)
 
 BUSINESS_TYPES = ["Hotel", "Restaurant", "Attractive"]
 

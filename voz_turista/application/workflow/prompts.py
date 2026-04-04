@@ -27,7 +27,7 @@ Reseñas a analizar:
 """
 
 PROMPT_SYNTHESIZE_OPPORTUNITIES = """
-Genera un reporte de inteligencia turistica para {business_type}s en {pueblo_magico} dirigido a autoridades.
+Genera un reporte de inteligencia turistica en español para {business_type}s en {pueblo_magico} dirigido a autoridades.
 
 Basandote en los insights recopilados, genera:
 1. summary: Resumen ejecutivo (2-3 oraciones) de los principales hallazgos para este tipo de negocio

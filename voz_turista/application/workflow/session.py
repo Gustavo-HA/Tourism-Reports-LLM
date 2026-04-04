@@ -1,5 +1,6 @@
 """Session management for Opportunity Workflow."""
 
+import logging
 from typing import Any, Dict, List, Optional
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
@@ -8,6 +9,8 @@ from voz_turista.application.workflow.graph import (
     build_chat_workflow,
     build_report_workflow,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class OpportunitySession:
@@ -49,9 +52,7 @@ class OpportunitySession:
         Returns:
             The consolidated report dictionary
         """
-        print(f"\n{'='*60}")
-        print(f"Generando reporte de oportunidades para {self.pueblo_magico}")
-        print(f"{'='*60}\n")
+        logger.info("Generando reporte de oportunidades para %s", self.pueblo_magico)
 
         result = self.report_app.invoke({"pueblo_magico": self.pueblo_magico})
 
@@ -143,4 +144,4 @@ SCORECARD DE EFICIENCIA TURISTICA:
     def clear_chat_history(self) -> None:
         """Clear the chat message history."""
         self.messages = []
-        print("Historial de chat limpiado.")
+        logger.info("Historial de chat limpiado.")

@@ -1,5 +1,6 @@
 """Node functions for the Opportunity Workflow."""
 
+import logging
 from typing import Any, Dict, List, Literal
 
 from langchain_core.messages import HumanMessage
@@ -29,6 +30,8 @@ from voz_turista.domain.schemas import (
 )
 from voz_turista.infrastructure.database.chroma_client import ChromaClient
 from voz_turista.infrastructure.llm_providers.litellm_provider import LiteLLMProvider
+
+logger = logging.getLogger(__name__)
 
 # Service initialization
 llm_provider = LiteLLMProvider(
@@ -72,7 +75,7 @@ def _get_chroma_client() -> ChromaClient:
 
 def retrieve_reviews_by_type_node(state: ReportGenerationState) -> Dict[str, Any]:
     """Recupera reseñas de ChromaDB para cada tipo de negocio usando múltiples queries."""
-    print(f"--- Recuperando reseñas para {state['pueblo_magico']} ---")
+    logger.info("Recuperando reseñas para %s", state["pueblo_magico"])
 
     chroma_client = _get_chroma_client()
     reviews_by_type: Dict[str, List[Review]] = {}
@@ -83,7 +86,7 @@ def retrieve_reviews_by_type_node(state: ReportGenerationState) -> Dict[str, Any
         type_reviews: List[Review] = []
 
         for query in queries:
-            print(f"  Consultando {business_type}: '{query[:40]}...'")
+            logger.info("  Consultando %s: '%s...'", business_type, query[:40])
             raw_reviews = chroma_client.query_reviews(
                 town=state["pueblo_magico"],
                 limit=REVIEWS_PER_QUERY,
@@ -103,16 +106,14 @@ def retrieve_reviews_by_type_node(state: ReportGenerationState) -> Dict[str, Any
                     )
 
         reviews_by_type[business_type] = type_reviews
-        print(
-            f"  -> {len(type_reviews)} reseñas únicas encontradas para {business_type}"
-        )
+        logger.info("  -> %d reseñas únicas encontradas para %s", len(type_reviews), business_type)
 
     return {"reviews_by_type": reviews_by_type, "iteration_count": 0}
 
 
 def prepare_analysis_tasks_node(state: ReportGenerationState) -> List[Send]:
     """Distribuye el trabajo para procesamiento paralelo por tipo y chunks."""
-    print("--- Preparando tareas de analisis ---")
+    logger.info("Preparando tareas de analisis")
 
     tasks = []
     chunk_size = 15
@@ -139,15 +140,13 @@ def prepare_analysis_tasks_node(state: ReportGenerationState) -> List[Send]:
                 )
             )
 
-    print(f"  -> {len(tasks)} tareas creadas")
+    logger.info("  -> %d tareas creadas", len(tasks))
     return tasks
 
 
 def extract_opportunities_node(state: BusinessTypeChunkState) -> Dict[str, Any]:
     """MAP: Extrae insights de oportunidad de un chunk de reseñas."""
-    print(
-        f"--- Extrayendo oportunidades: {state['business_type']} chunk {state['chunk_id']} ---"
-    )
+    logger.info("Extrayendo oportunidades: %s chunk %s", state["business_type"], state["chunk_id"])
 
     # Handle both Review objects and dicts (for compatibility)
     reviews_text = "\n".join(
@@ -178,14 +177,14 @@ def extract_opportunities_node(state: BusinessTypeChunkState) -> Dict[str, Any]:
             insight_dict["business_type"] = state["business_type"]
             insights.append(insight_dict)
         return {"insights": insights}
-    except Exception as e:
-        print(f"Error en {state['business_type']} chunk {state['chunk_id']}: {e}")
+    except Exception:
+        logger.exception("Error en %s chunk %s", state["business_type"], state["chunk_id"])
         return {"insights": []}
 
 
 def synthesize_reports_node(state: ReportGenerationState) -> Dict[str, Any]:
     """REDUCE: Sintetiza insights en reportes por tipo de negocio."""
-    print("--- Sintetizando reportes por tipo de negocio ---")
+    logger.info("Sintetizando reportes por tipo de negocio")
 
     business_reports: Dict[str, Any] = {}
 
@@ -236,7 +235,7 @@ def synthesize_reports_node(state: ReportGenerationState) -> Dict[str, Any]:
                 "summary": response.summary,
             }
         except Exception as e:
-            print(f"Error sintetizando {business_type}: {e}")
+            logger.exception("Error sintetizando %s", business_type)
             business_reports[business_type] = {
                 "business_type": business_type,
                 "total_reviews_analyzed": total_reviews,
@@ -251,9 +250,8 @@ def synthesize_reports_node(state: ReportGenerationState) -> Dict[str, Any]:
 
 def consolidate_report_node(state: ReportGenerationState) -> Dict[str, Any]:
     """Genera el reporte consolidado final."""
-    print("--- Consolidando reporte final ---")
+    logger.info("Consolidando reporte final")
 
-    # Format business reports for the prompt
     reports_text = ""
     for btype, report in state["business_reports"].items():
         reports_text += f"\n## {btype}\n"
@@ -280,7 +278,7 @@ def consolidate_report_node(state: ReportGenerationState) -> Dict[str, Any]:
         consolidated["pueblo_magico"] = state["pueblo_magico"]
         return {"consolidated_report": consolidated}
     except Exception as e:
-        print(f"Error consolidando reporte: {e}")
+        logger.exception("Error consolidando reporte")
         return {
             "consolidated_report": {
                 "executive_summary": f"Error al generar reporte: {e}",
@@ -296,14 +294,14 @@ def consolidate_report_node(state: ReportGenerationState) -> Dict[str, Any]:
 
 def audit_report_node(state: ReportGenerationState) -> Dict[str, Any]:
     """Audita el reporte contra la evidencia."""
-    print("--- Auditando reporte ---")
+    logger.info("Auditando reporte")
 
     report_str = str(state["consolidated_report"])
 
     # Collect sample evidence from all business types (handle both Review objects and dicts)
     evidence_reviews = []
     for reviews in state["reviews_by_type"].values():
-        evidence_reviews.extend(reviews[:5])
+        evidence_reviews.extend(reviews)
 
     evidence_text = "\n".join(
         [
@@ -327,7 +325,7 @@ def audit_report_node(state: ReportGenerationState) -> Dict[str, Any]:
             "iteration_count": state.get("iteration_count", 0) + 1,
         }
     except Exception as e:
-        print(f"Error en auditoría: {e}")
+        logger.exception("Error en auditoría")
         return {
             "audit_result": {"status": "APROBADO", "corrections": [], "error": str(e)},
             "iteration_count": state.get("iteration_count", 0) + 1,
@@ -342,12 +340,10 @@ def route_after_audit(
     iteration = state.get("iteration_count", 0)
 
     if audit.get("status") == "APROBADO" or iteration >= 3:
-        print(
-            f"--- Reporte {'aprobado' if audit.get('status') == 'APROBADO' else 'max iteraciones'} ---"
-        )
+        logger.info("Reporte %s", "aprobado" if audit.get("status") == "APROBADO" else "max iteraciones")
         return "end"
     else:
-        print(f"--- Reporte rechazado, iteracion {iteration}/3 ---")
+        logger.info("Reporte rechazado, iteracion %d/3", iteration)
         return "consolidate_report"
 
 
@@ -356,7 +352,7 @@ def route_after_audit(
 
 def parse_user_query_node(state: ChatState) -> Dict[str, Any]:
     """Parsea la consulta del usuario a filtros de ChromaDB."""
-    print(f"--- Parseando consulta: {state['user_message'][:50]}... ---")
+    logger.info("Parseando consulta: %s...", state["user_message"][:50])
 
     prompt = PROMPT_PARSE_QUERY.format(
         pueblo_magico=state["pueblo_magico"],
@@ -369,10 +365,10 @@ def parse_user_query_node(state: ChatState) -> Dict[str, Any]:
         )
         return {
             "text_query": response.text_query or state["user_message"],
-            "parsed_filters": response.filters,
+            "parsed_filters": response.filters.model_dump(exclude_none=True),
         }
-    except Exception as e:
-        print(f"Error parseando consulta: {e}")
+    except Exception:
+        logger.exception("Error parseando consulta")
         return {
             "text_query": state["user_message"],
             "parsed_filters": {},
@@ -381,7 +377,7 @@ def parse_user_query_node(state: ChatState) -> Dict[str, Any]:
 
 def execute_query_node(state: ChatState) -> Dict[str, Any]:
     """Ejecuta la consulta contra ChromaDB."""
-    print(f"--- Ejecutando consulta: {state.get('text_query', '')[:50]}... ---")
+    logger.info("Ejecutando consulta: %s...", state.get("text_query", "")[:50])
 
     chroma_client = _get_chroma_client()
 
@@ -403,14 +399,14 @@ def execute_query_node(state: ChatState) -> Dict[str, Any]:
             for r in raw_reviews
         ]
         return {"query_results": reviews}
-    except Exception as e:
-        print(f"Error ejecutando consulta: {e}")
+    except Exception:
+        logger.exception("Error ejecutando consulta")
         return {"query_results": []}
 
 
 def generate_response_node(state: ChatState) -> Dict[str, Any]:
     """Genera la respuesta del chat."""
-    print("--- Generando respuesta ---")
+    logger.info("Generando respuesta")
 
     # Format report summary (handle both dict and Pydantic model)
     report = state.get("consolidated_report", {})
@@ -468,5 +464,5 @@ Oportunidades Transversales: {", ".join(report.get("cross_cutting_opportunities"
         response = llm_provider.generate(messages=[HumanMessage(content=prompt)])
         return {"response": response}
     except Exception as e:
-        print(f"Error generando respuesta: {e}")
+        logger.exception("Error generando respuesta")
         return {"response": f"Lo siento, ocurrió un error al procesar tu consulta: {e}"}

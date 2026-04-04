@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
-from voz_turista.application.opportunity_workflow.graph import (
+from voz_turista.application.workflow.graph import (
     build_chat_workflow,
     build_report_workflow,
 )

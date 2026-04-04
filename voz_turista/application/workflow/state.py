@@ -1,58 +1,71 @@
+"""State definitions for the Opportunity Workflow."""
+
 import operator
-from typing import Annotated, List, Optional, TypedDict, Dict, Any
+from typing import Annotated, Any, Dict, List, Optional, TypedDict
+
 from langchain_core.messages import BaseMessage
 
-
-class Review(TypedDict):
-    """Representa una reseña individual recuperada de ChromaDB."""
-
-    id: str
-    text: str
-    metadata: Dict[str, Any]
-
-
-class Insight(TypedDict):
-    """Representa un hallazgo extraído de un lote de reseñas."""
-
-    idx_review: List[str]  # IDs de referencia
-    insight: str  # Hallazgo conciso
-    atribucion: str  # 'Pública' | 'Privada'
-    dimension: str  # 'Recurso Natural' | 'Servicio de Soporte' | 'Gestión de Destino'
-    urgencia: str  # 'Alta' | 'Media' | 'Baja'
+from voz_turista.domain.schemas import (
+    BusinessTypeReport,
+    ConsolidatedReport,
+    OpportunityInsight,
+    Review,
+)
 
 
-class ProjectState(TypedDict):
-    """
-    Estado principal del grafo que gestiona el flujo de la aplicación.
-    """
+# ============== Report Generation State ==============
 
-    # --- Entradas del Usuario ---
+
+class ReportGenerationState(TypedDict):
+    """Estado principal para la generación del reporte."""
+
+    # Entrada del usuario
     pueblo_magico: str
-    user_query: Optional[str]  # Pregunta actual del usuario (si aplica)
 
-    # --- Datos del Proceso ---
-    reviews: List[Review]  # Reseñas recuperadas para el análisis
-    insights: Annotated[
-        List[Insight], operator.add
-    ]  # Lista acumulativa de insights extraídos (Map phase)
+    # Datos del proceso
+    reviews_by_type: Dict[
+        str, List[Review]
+    ]  # {'Hotel': [...], 'Restaurant': [...], 'Attractive': [...]}
+    insights: Annotated[List[OpportunityInsight], operator.add]  # Acumulativo via Map
 
-    # --- Estado del Producto (Persistente) ---
-    reporte_base: Optional[
-        Dict[str, Any]
-    ]  # El "Briefing de Competitividad Estratégica" (Reduce phase)
-    auditoria: Optional[Dict[str, Any]]  # Resultado del nodo Auditor (Self-Correction)
+    # Reportes por tipo de negocio
+    business_reports: Dict[str, BusinessTypeReport]
 
-    # --- Control de Flujo ---
-    iteration_count: int  # Para evitar ciclos infinitos en self-correction
+    # Reporte consolidado final
+    consolidated_report: Optional[ConsolidatedReport]
 
-    # --- Chat History (Opcional para interacción futura) ---
-    messages: Annotated[List[BaseMessage], operator.add]
+    # Auditoría
+    audit_result: Optional[Dict[str, Any]]
+    iteration_count: int
 
 
-class ReviewChunkState(TypedDict):
-    """
-    Estado para el procesamiento de un chunk individual de reviews (Fase Map).
-    """
+class BusinessTypeChunkState(TypedDict):
+    """Estado para procesamiento paralelo de chunks por tipo de negocio."""
 
+    business_type: str
     chunk_id: int
     reviews: List[Review]
+    pueblo_magico: str
+
+
+# ============== Chat State ==============
+
+
+class ChatState(TypedDict):
+    """Estado para el modo de chat interactivo."""
+
+    # Contexto del reporte
+    pueblo_magico: str
+    consolidated_report: ConsolidatedReport
+
+    # Consulta actual
+    user_message: str
+    messages: List[BaseMessage]  # Historial de chat
+
+    # Resultados de la consulta
+    parsed_filters: Optional[Dict[str, Any]]
+    text_query: Optional[str]
+    query_results: Optional[List[Review]]
+
+    # Respuesta generada
+    response: Optional[str]

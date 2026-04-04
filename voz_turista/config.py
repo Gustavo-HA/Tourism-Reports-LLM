@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     EMBEDDING_MODEL: str
 
-    VECTOR_DB_PATH: str = "data/vectordb"
+    VECTOR_DB_PATH: str
 
 
 settings = Settings()

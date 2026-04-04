@@ -195,12 +195,26 @@ class ConsolidatedReport(BaseModel):
     )
 
 
+class QueryFilters(BaseModel):
+    """Filtros de metadata para consultas a ChromaDB."""
+
+    type: Optional[str] = Field(
+        default=None, description="Tipo de negocio: Hotel, Restaurant o Attractive."
+    )
+    polarity: Optional[str] = Field(
+        default=None, description="Polaridad de la reseña: positive o negative."
+    )
+    place: Optional[str] = Field(
+        default=None, description="Nombre del lugar específico."
+    )
+
+
 class ParsedQuery(BaseModel):
     """Resultado del parseo de una consulta de usuario para el chat."""
 
     text_query: str = Field(description="Consulta de texto para búsqueda semántica.")
-    filters: Dict[str, Any] = Field(
-        default_factory=dict, description="Filtros para ChromaDB."
+    filters: QueryFilters = Field(
+        default_factory=QueryFilters, description="Filtros para ChromaDB."
     )
     requires_report_context: bool = Field(
         default=False, description="Si la consulta requiere contexto del reporte."

@@ -42,19 +42,19 @@ BUSINESS_TYPES = ["Hotel", "Restaurant", "Attractive"]
 
 BUSINESS_TYPE_QUERIES: Dict[str, List[str]] = {
     "Hotel": [
-        "experiencia hospedaje habitación limpieza comodidad",
-        "recepción servicio atención check-in personal",
-        "amenidades instalaciones alberca desayuno precio",
+        "problemas con la experiencia de hospedaje habitación limpieza comodidad",
+        "problemas con recepción servicio atención check-in personal",
+        "problemas con las amenidades instalaciones alberca desayuno precio",
     ],
     "Restaurant": [
-        "comida sabor calidad platillo frescura",
-        "servicio mesero tiempo espera atención",
-        "ambiente precio menú variedad opciones",
+        "problemas con comida sabor calidad platillo frescura",
+        "problemas con servicio mesero tiempo espera atención",
+        "problemas con ambiente precio menú variedad opciones",
     ],
     "Attractive": [
-        "experiencia visita recorrido actividad entretenimiento",
-        "paisaje vista lugar belleza natural",
-        "acceso infraestructura señalización guía seguridad",
+        "problemas con experiencia visita recorrido actividad entretenimiento",
+        "problemas con paisaje vista lugar belleza natural",
+        "problemas con acceso infraestructura señalización guía seguridad",
     ],
 }
 
@@ -306,7 +306,7 @@ def audit_report_node(state: ReportGenerationState) -> Dict[str, Any]:
     evidence_text = "\n".join(
         [
             f"- {r.text if hasattr(r, 'text') else r['text']}"
-            for r in evidence_reviews[:15]
+            for r in evidence_reviews
         ]
     )
 

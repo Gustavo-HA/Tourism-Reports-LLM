@@ -58,7 +58,7 @@ BUSINESS_TYPE_QUERIES: Dict[str, List[str]] = {
     ],
 }
 
-REVIEWS_PER_QUERY = 5
+REVIEWS_PER_QUERY = 10
 
 
 def _get_chroma_client() -> ChromaClient:
@@ -67,6 +67,7 @@ def _get_chroma_client() -> ChromaClient:
         persist_directory=settings.VECTOR_DB_PATH,
         collection_name="restmex_sss_cs200_ov50",
         embedding_model=settings.EMBEDDING_MODEL,
+        reranker_model=settings.RERANKER_MODEL,
     )
 
 

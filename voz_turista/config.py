@@ -13,5 +13,7 @@ class Settings(BaseSettings):
 
     VECTOR_DB_PATH: str
 
+    RERANKER_MODEL: str | None = None
+
 
 settings = Settings()

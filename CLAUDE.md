@@ -56,6 +56,7 @@ Required settings in `.env` (no defaults in code):
 - `EMBEDDING_MODEL` — sentence-transformers model (e.g., `hiiamsid/sentence_similarity_spanish_es`)
 - `LLM_TEMPERATURE` — optional, defaults to `0.0`
 - `VECTOR_DB_PATH` — optional, defaults to `data/vectordb`
+- `RERANKER_MODEL` — optional cross-encoder model for two-stage retrieval reranking (e.g., `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`). Disabled when unset.
 
 ## Architecture
 

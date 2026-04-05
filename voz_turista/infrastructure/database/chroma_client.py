@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import Any, Dict, List
 
@@ -6,6 +7,8 @@ from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunct
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 from .utils import read_restmex_dataframe
+
+logger = logging.getLogger(__name__)
 
 
 class ChromaClient:
@@ -16,6 +19,7 @@ class ChromaClient:
         embedding_model: str,
         device_preference: str = "cuda",
         use_upsert: bool = False,
+        reranker_model: str | None = None,
     ):
         """Inicializa el cliente de ChromaDB."""
         self.collection_name = collection_name
@@ -47,6 +51,22 @@ class ChromaClient:
                 }
             },
         )
+
+        # Lazy-loaded cross-encoder reranker
+        self._reranker = None
+        self._reranker_model = reranker_model
+
+    @property
+    def reranker(self):
+        """Lazily load the CrossEncoder reranker on first use."""
+        if self._reranker is None and self._reranker_model is not None:
+            from sentence_transformers import CrossEncoder
+
+            logger.info("Cargando reranker: %s", self._reranker_model)
+            self._reranker = CrossEncoder(
+                self._reranker_model, device=self.embedding_device
+            )
+        return self._reranker
 
     def add_documents(
         self,
@@ -157,14 +177,20 @@ class ChromaClient:
         limit: int = 100,
         filters: Dict[str, Any] = None,
         text_query: str = "",
+        rerank: bool = True,
+        overfetch_factor: int = 3,
     ) -> List[Dict[str, Any]]:
         """
         Recupera reseñas filtradas por pueblo y otros criterios.
+        Opcionalmente aplica reranking con un cross-encoder.
 
         Args:
             town (str): Nombre del Pueblo Mágico.
-            limit (int): Número máximo de reseñas a recuperar.
+            limit (int): Número máximo de reseñas a retornar.
             filters (Dict): Filtros adicionales (ej. {'type': 'Restaurant'}).
+            text_query (str): Texto de consulta para búsqueda semántica.
+            rerank (bool): Si True y hay un reranker configurado, aplica reranking.
+            overfetch_factor (int): Factor de sobre-recuperación para el reranker.
 
         Returns:
             List[Dict]: Lista de reseñas con sus metadatos.
@@ -186,9 +212,13 @@ class ChromaClient:
         else:
             where_clause = {"town": town}
 
+        # Over-fetch if reranking is enabled
+        use_reranker = rerank and self.reranker is not None
+        fetch_limit = limit * overfetch_factor if use_reranker else limit
+
         results = self.collection.query(
             query_texts=[text_query],
-            n_results=limit,
+            n_results=fetch_limit,
             where=where_clause,
         )
 
@@ -203,6 +233,18 @@ class ChromaClient:
                         "distance": results["distances"][0][i],
                     }
                 )
+
+        # Stage 2: Rerank with cross-encoder
+        if use_reranker and len(reviews) > 0:
+            logger.info(
+                "Reranking %d candidatos -> top %d", len(reviews), limit
+            )
+            pairs = [(text_query, r["text"]) for r in reviews]
+            scores = self.reranker.predict(pairs)
+            for review, score in zip(reviews, scores):
+                review["rerank_score"] = float(score)
+            reviews.sort(key=lambda r: r["rerank_score"], reverse=True)
+            reviews = reviews[:limit]
 
         return reviews
 

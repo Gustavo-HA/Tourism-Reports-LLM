@@ -80,7 +80,7 @@ class ChromaClient:
         """
         total_records = len(documents)
         total_lotes = (total_records + batch_size - 1) // batch_size
-        print(f"Ingestando {total_records} documentos en {total_lotes} lotes...")
+        logger.info(f"Ingestando {total_records} documentos en {total_lotes} lotes...")
 
         add_fn = (
             self.collection.upsert
@@ -101,11 +101,11 @@ class ChromaClient:
                     metadatas=batch_metas,
                     ids=batch_ids,
                 )
-                print(f"Lote procesado: {i // batch_size + 1} / {total_lotes}")
+                logger.info(f"Lote procesado: {i // batch_size + 1} / {total_lotes}")
             except Exception as e:
-                print(f"Error en el lote {i}: {e}")
+                logger.error(f"Error en el lote {i}: {e}")
         
-        print("Operación completada.")
+        logger.info("Operación completada.")
 
     def ingest_restmex(
         self,
@@ -118,7 +118,7 @@ class ChromaClient:
         Ingesta datos desde un archivo Parquet a ChromaDB con soporte para chunking.
         """
         df_restmex = read_restmex_dataframe(parquet_path)
-        print(f"Procesando {len(df_restmex)} registros originales...")
+        logger.info(f"Procesando {len(df_restmex)} registros originales...")
 
         # Configurar splitter
         text_splitter = RecursiveCharacterTextSplitter(
@@ -139,7 +139,7 @@ class ChromaClient:
 
             # Generar chunks
             chunks = text_splitter.split_text(original_text)
-            
+            logger.info(f"Documento dividido en {len(chunks)} chunks.")
             # ID base del documento original
             composite_key = f"{row.Pueblo}-{row.Lugar}-{row.FechaEstadia}-{original_text}"
             base_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, composite_key))
@@ -279,5 +279,5 @@ if __name__ == "__main__":
     #     filters=filters,
     # )
     # for review in reviews:
-    #     print(f"ID: {review['id']}\nTexto: {review['text']}\nMetadatos: {review['metadata']}\nDistance: {review.get('distance', 'N/A')}\n---\n")
+    #     logger.info(f"ID: {review['id']}\nTexto: {review['text']}\nMetadatos: {review['metadata']}\nDistance: {review.get('distance', 'N/A')}\n---\n")
     pass

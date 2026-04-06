@@ -78,7 +78,7 @@ def _get_chroma_client() -> ChromaClient:
     """Get ChromaDB client instance."""
     return ChromaClient(
         persist_directory=settings.VECTOR_DB_PATH,
-        collection_name="restmex_sss_cs200_ov50",
+        collection_name=settings.VECTOR_DB_COLLECTION,
         embedding_model=settings.EMBEDDING_MODEL,
         reranker_model=settings.RERANKER_MODEL,
     )

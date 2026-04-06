@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     EMBEDDING_MODEL: str
 
     VECTOR_DB_PATH: str
+    VECTOR_DB_COLLECTION: str
 
     RERANKER_MODEL: str | None = None
 

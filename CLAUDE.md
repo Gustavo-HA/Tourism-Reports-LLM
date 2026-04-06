@@ -55,7 +55,8 @@ Required settings in `.env` (no defaults in code):
 - `LLM_MODEL` — LiteLLM model identifier (e.g., `gemini/gemini-2.5-flash`, `groq/llama-3.1-70b-versatile`)
 - `EMBEDDING_MODEL` — sentence-transformers model (e.g., `hiiamsid/sentence_similarity_spanish_es`)
 - `LLM_TEMPERATURE` — optional, defaults to `0.0`
-- `VECTOR_DB_PATH` — optional, defaults to `data/vectordb`
+- `VECTOR_DB_PATH` — path to vector database (e.g., `data/chromadb/restmex_sss_cs200_ov50/`)
+- `VECTOR_DB_COLLECTION` - vector database collection name (e.g., `restmex_sss_cs200_ov50`)
 - `RERANKER_MODEL` — optional cross-encoder model for two-stage retrieval reranking (e.g., `cross-encoder/mmarco-mMiniLMv2-L12-H384-v1`). Disabled when unset.
 
 ## Architecture

@@ -24,6 +24,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+mlflow.set_experiment("Tourism Report Generation - Testing")
 mlflow.langchain.autolog()
 
 def format_report_md(report: dict, pueblo_magico: str) -> str:
@@ -133,40 +134,53 @@ def main():
 
     logger.info("Iniciando workflow para: %s", pueblo_magico)
 
-    llm_provider = LiteLLMProvider(
-        model_name=settings.LLM_MODEL, temperature=settings.LLM_TEMPERATURE
-    )
-    session = OpportunitySession(pueblo_magico, llm_provider=llm_provider)
+    with mlflow.start_run():
+        mlflow.log_params(
+            {
+                "pueblo_magico": pueblo_magico,
+                "llm_model": settings.LLM_MODEL,
+                "llm_temperature": settings.LLM_TEMPERATURE,
+                "embedding_model": settings.EMBEDDING_MODEL,
+                "vector_db_path": settings.VECTOR_DB_PATH,
+                "reranker_model": settings.RERANKER_MODEL or "disabled",
+            }
+        )
 
-    # Phase 1: Generate Report
-    logger.info("Fase 1: Generando reporte...")
-    report = session.generate_report()
-    report_md = format_report_md(report, pueblo_magico)
+        llm_provider = LiteLLMProvider(
+            model_name=settings.LLM_MODEL, temperature=settings.LLM_TEMPERATURE
+        )
+        session = OpportunitySession(pueblo_magico, llm_provider=llm_provider)
 
-    # Phase 2: Chat
-    logger.info("Fase 2: Ejecutando consultas de chat...")
-    test_queries = [
-        "Cuales son las principales quejas sobre hoteles?",
-        "Que problemas de servicio tienen los restaurantes?",
-        "Dame ejemplos de resenas negativas sobre limpieza",
-    ]
+        # Phase 1: Generate Report
+        logger.info("Fase 1: Generando reporte...")
+        report = session.generate_report()
+        report_md = format_report_md(report, pueblo_magico)
 
-    responses = []
-    for query in test_queries:
-        logger.info("  -> %s...", query[:50])
-        responses.append(session.chat(query))
+        # Phase 2: Chat
+        logger.info("Fase 2: Ejecutando consultas de chat...")
+        test_queries = [
+            "Cuales son las principales quejas sobre hoteles?",
+            "Que problemas de servicio tienen los restaurantes?",
+            "Dame ejemplos de resenas negativas sobre limpieza",
+        ]
 
-    chat_md = format_chat_md(test_queries, responses)
+        responses = []
+        for query in test_queries:
+            logger.info("  -> %s...", query[:50])
+            responses.append(session.chat(query))
 
-    # Combine and write output
-    full_md = f"{report_md}\n{chat_md}"
+        chat_md = format_chat_md(test_queries, responses)
 
-    output_dir = Path("reports")
-    output_dir.mkdir(exist_ok=True)
-    output_path = output_dir / f"opportunity_{pueblo_magico}.md"
-    output_path.write_text(full_md, encoding="utf-8")
+        # Combine and write output
+        full_md = f"{report_md}\n{chat_md}"
 
-    logger.info("Reporte guardado en: %s", output_path)
+        output_dir = Path("reports")
+        output_dir.mkdir(exist_ok=True)
+        output_path = output_dir / f"opportunity_{pueblo_magico}.md"
+        output_path.write_text(full_md, encoding="utf-8")
+
+        mlflow.log_artifact(str(output_path))
+        logger.info("Reporte guardado en: %s", output_path)
 
 
 if __name__ == "__main__":

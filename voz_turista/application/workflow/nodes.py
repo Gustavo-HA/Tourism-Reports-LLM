@@ -29,14 +29,27 @@ from voz_turista.domain.schemas import (
     Review,
 )
 from voz_turista.infrastructure.database.chroma_client import ChromaClient
-from voz_turista.infrastructure.llm_providers.litellm_provider import LiteLLMProvider
+from voz_turista.infrastructure.llm_providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
-# Service initialization
-llm_provider = LiteLLMProvider(
-    model_name=settings.LLM_MODEL, temperature=settings.LLM_TEMPERATURE
-)
+_llm_provider: LLMProvider | None = None
+
+
+def _get_llm_provider() -> LLMProvider:
+    """Get LLM provider instance. Must be set via set_llm_provider() before use."""
+    if _llm_provider is None:
+        raise RuntimeError(
+            "LLM provider not configured. Call set_llm_provider() before running the workflow."
+        )
+    return _llm_provider
+
+
+def set_llm_provider(provider: LLMProvider) -> None:
+    """Configure the LLM provider instance used by all workflow nodes."""
+    global _llm_provider
+    _llm_provider = provider
+
 
 BUSINESS_TYPES = ["Hotel", "Restaurant", "Attractive"]
 
@@ -167,7 +180,7 @@ def extract_opportunities_node(state: BusinessTypeChunkState) -> Dict[str, Any]:
     )
 
     try:
-        response: ExtractedOpportunityInsightList = llm_provider.generate_structured(
+        response: ExtractedOpportunityInsightList = _get_llm_provider().generate_structured(
             messages=[HumanMessage(content=prompt)],
             schema=ExtractedOpportunityInsightList,
         )
@@ -224,7 +237,7 @@ def synthesize_reports_node(state: ReportGenerationState) -> Dict[str, Any]:
         )
 
         try:
-            response: BusinessTypeSynthesis = llm_provider.generate_structured(
+            response: BusinessTypeSynthesis = _get_llm_provider().generate_structured(
                 messages=[HumanMessage(content=prompt)], schema=BusinessTypeSynthesis
             )
             business_reports[business_type] = {
@@ -270,7 +283,7 @@ def consolidate_report_node(state: ReportGenerationState) -> Dict[str, Any]:
     )
 
     try:
-        response: ConsolidatedReport = llm_provider.generate_structured(
+        response: ConsolidatedReport = _get_llm_provider().generate_structured(
             messages=[HumanMessage(content=prompt)], schema=ConsolidatedReport
         )
         # Convert to dict and add business reports context
@@ -318,7 +331,7 @@ def audit_report_node(state: ReportGenerationState) -> Dict[str, Any]:
     )
 
     try:
-        response: AuditResult = llm_provider.generate_structured(
+        response: AuditResult = _get_llm_provider().generate_structured(
             messages=[HumanMessage(content=prompt)], schema=AuditResult
         )
         return {
@@ -361,7 +374,7 @@ def parse_user_query_node(state: ChatState) -> Dict[str, Any]:
     )
 
     try:
-        response: ParsedQuery = llm_provider.generate_structured(
+        response: ParsedQuery = _get_llm_provider().generate_structured(
             messages=[HumanMessage(content=prompt)], schema=ParsedQuery
         )
         return {
@@ -462,7 +475,7 @@ Oportunidades Transversales: {", ".join(report.get("cross_cutting_opportunities"
     )
 
     try:
-        response = llm_provider.generate(messages=[HumanMessage(content=prompt)])
+        response = _get_llm_provider().generate(messages=[HumanMessage(content=prompt)])
         return {"response": response}
     except Exception as e:
         logger.exception("Error generando respuesta")

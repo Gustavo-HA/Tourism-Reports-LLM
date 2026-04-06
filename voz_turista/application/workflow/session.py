@@ -9,6 +9,8 @@ from voz_turista.application.workflow.graph import (
     build_chat_workflow,
     build_report_workflow,
 )
+from voz_turista.application.workflow.nodes import set_llm_provider
+from voz_turista.infrastructure.llm_providers.base import LLMProvider
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +20,10 @@ class OpportunitySession:
     Manages a complete opportunity analysis session.
 
     Usage:
-        session = OpportunitySession("Isla_Mujeres")
+        from voz_turista.infrastructure.llm_providers.litellm_provider import LiteLLMProvider
+
+        provider = LiteLLMProvider(model_name="gemini/gemini-2.5-flash")
+        session = OpportunitySession("Isla_Mujeres", llm_provider=provider)
 
         # Generate the report
         report = session.generate_report()
@@ -32,13 +37,14 @@ class OpportunitySession:
         print(response)
     """
 
-    def __init__(self, pueblo_magico: str):
+    def __init__(self, pueblo_magico: str, llm_provider: LLMProvider):
         """
         Initialize the session.
 
         Args:
             pueblo_magico: Name of the Pueblo Magico to analyze
         """
+        set_llm_provider(llm_provider)
         self.pueblo_magico = pueblo_magico
         self.report_app = build_report_workflow()
         self.chat_app = build_chat_workflow()

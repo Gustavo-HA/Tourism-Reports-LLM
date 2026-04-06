@@ -9,12 +9,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 import mlflow
 
-# Load env vars BEFORE importing modules that instantiate LLM providers at module level
 load_dotenv()
 
 sys.path.append(".")
 
 from voz_turista.application.workflow import OpportunitySession  # noqa: E402
+from voz_turista.config import settings  # noqa: E402
+from voz_turista.infrastructure.llm_providers.litellm_provider import LiteLLMProvider  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -132,7 +133,10 @@ def main():
 
     logger.info("Iniciando workflow para: %s", pueblo_magico)
 
-    session = OpportunitySession(pueblo_magico)
+    llm_provider = LiteLLMProvider(
+        model_name=settings.LLM_MODEL, temperature=settings.LLM_TEMPERATURE
+    )
+    session = OpportunitySession(pueblo_magico, llm_provider=llm_provider)
 
     # Phase 1: Generate Report
     logger.info("Fase 1: Generando reporte...")

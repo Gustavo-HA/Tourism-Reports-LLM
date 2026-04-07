@@ -107,20 +107,20 @@ class ChromaClient:
         
         logger.info("Operación completada.")
 
-    def ingest_restmex(
+    def ingest_dataframe(
         self,
-        parquet_path: str,
+        df,
         batch_size: int = 1000,
         chunk_size: int = 200,
         chunk_overlap: int = 50,
     ) -> None:
         """
-        Ingesta datos desde un archivo Parquet a ChromaDB con soporte para chunking.
+        Ingesta un DataFrame de reseñas RESTMEX a ChromaDB con soporte para chunking.
         """
-        df_restmex = read_restmex_dataframe(parquet_path)
-        logger.info(f"Procesando {len(df_restmex)} registros originales...")
+        import pandas as pd
 
-        # Configurar splitter
+        logger.info(f"Procesando {len(df)} registros originales...")
+
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=chunk_size,
             chunk_overlap=chunk_overlap,
@@ -131,23 +131,18 @@ class ChromaClient:
         all_metadatas = []
         all_ids = []
 
-        for row in df_restmex.itertuples(index=False):
-            # Access attributes with dot notation instead of brackets
-            original_text = row.text 
+        for row in df.itertuples(index=False):
+            original_text = row.text
             if not isinstance(original_text, str) or not original_text.strip():
                 continue
 
-            # Generar chunks
             chunks = text_splitter.split_text(original_text)
             logger.info(f"Documento dividido en {len(chunks)} chunks.")
-            # ID base del documento original
             composite_key = f"{row.Pueblo}-{row.Lugar}-{row.FechaEstadia}-{original_text}"
             base_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, composite_key))
 
             for i, chunk in enumerate(chunks):
                 chunk_id = f"{base_id}_{i}"
-                
-                # Metadatos base + info del chunk
                 metadata = {
                     "town": row.Pueblo,
                     "polarity": row.Calificacion,
@@ -163,13 +158,25 @@ class ChromaClient:
                 all_metadatas.append(metadata)
                 all_ids.append(chunk_id)
 
-        # Ingestar usando el método genérico
         self.add_documents(
             documents=all_documents,
             metadatas=all_metadatas,
             ids=all_ids,
-            batch_size=batch_size
+            batch_size=batch_size,
         )
+
+    def ingest_restmex(
+        self,
+        parquet_path: str,
+        batch_size: int = 1000,
+        chunk_size: int = 200,
+        chunk_overlap: int = 50,
+    ) -> None:
+        """
+        Ingesta datos desde un archivo Parquet a ChromaDB con soporte para chunking.
+        """
+        df = read_restmex_dataframe(parquet_path)
+        self.ingest_dataframe(df, batch_size=batch_size, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
 
     def query_reviews(
         self,

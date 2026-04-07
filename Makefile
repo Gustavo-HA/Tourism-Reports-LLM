@@ -66,6 +66,15 @@ create_environment:
 # PROJECT RULES                                                                 #
 #################################################################################
 
+## Ingest reviews into ChromaDB (PUEBLO=<name> or ALL=1)
+.PHONY: ingest
+ingest:
+	$(if $(PUEBLO), \
+		$(PYTHON_INTERPRETER) scripts/ingest_reviews.py --pueblo $(PUEBLO), \
+		$(if $(ALL), \
+			$(PYTHON_INTERPRETER) scripts/ingest_reviews.py --all, \
+			$(error Provide PUEBLO=<nombre> or ALL=1)))
+
 ## Run FastAPI backend server
 .PHONY: api
 api:

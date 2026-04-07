@@ -173,10 +173,10 @@ def extract_opportunities_node(state: BusinessTypeChunkState) -> Dict[str, Any]:
     # Handle both Review objects and dicts (for compatibility)
     reviews_text = "\n".join(
         [
-            f"ID: {r.id if hasattr(r, 'id') else r['id']} | "
-            f"Calificacion: {(r.metadata if hasattr(r, 'metadata') else r['metadata']).get('polarity', 'N/A')} | "
-            f"Año : {(r.metadata if hasattr(r, 'metadata') else r['metadata']).get('year', 'N/A')} | "
-            f"Texto: {r.text if hasattr(r, 'text') else r['text']}"
+            f"ID: {r.id} | "
+            f"Calificacion: {r.metadata.get('polarity', 'N/A')} | "
+            f"Año : {r.metadata.get('year', 'N/A')} | "
+            f"Texto: {r.text}"
             for r in state["reviews"]
         ]
     )
@@ -324,14 +324,11 @@ def audit_report_node(state: ReportGenerationState) -> Dict[str, Any]:
 
     report_str = str(state["consolidated_report"])
 
-    # Collect sample evidence from all business types (handle both Review objects and dicts)
     evidence_reviews = []
     for reviews in state["reviews_by_type"].values():
         evidence_reviews.extend(reviews)
 
-    evidence_text = "\n".join(
-        [f"- {r.text if hasattr(r, 'text') else r['text']}" for r in evidence_reviews]
-    )
+    evidence_text = "\n".join([f"- {r.text}" for r in evidence_reviews])
 
     prompt = PROMPT_AUDIT_REPORT.format(
         pueblo_magico=state["pueblo_magico"],
@@ -461,9 +458,9 @@ Oportunidades Transversales: {", ".join(report.get("cross_cutting_opportunities"
     if results:
         results_text = "\n".join(
             [
-                f"- [{(r.metadata if hasattr(r, 'metadata') else r['metadata']).get('type', 'N/A')}] "
-                f"(Cal: {(r.metadata if hasattr(r, 'metadata') else r['metadata']).get('polarity', 'N/A')}) "
-                f"{(r.text if hasattr(r, 'text') else r['text'])[:200]}..."
+                f"- [{r.metadata.get('type', 'N/A')}] "
+                f"(Cal: {r.metadata.get('polarity', 'N/A')}) "
+                f"{r.text[:200]}..."
                 for r in results[:10]
             ]
         )

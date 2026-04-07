@@ -52,7 +52,13 @@ Estructura del briefing:
    - servicios: Hospedaje, restaurantes, guias, atencion al turista
    - atractivos: Recursos naturales, culturales, experiencias ofrecidas
 
-3. gap_diagnosis: Diagnostico de Brechas (5-8 items). Identifica recursos infrautilizados por fallas macro (publicas: gobierno, infraestructura) o micro (privadas: gestion de negocios). Cada brecha debe ser especifica y accionable.
+3. gap_diagnosis: Diagnostico de Brechas (5-8 items). Identifica recursos infrautilizados por fallas macro (publicas: gobierno, infraestructura) o micro (privadas: gestion de negocios). Cada brecha debe ser especifica y accionable. Estas brechas deben ser subsecciones del briefing, no solo items en una lista:
+    - Pública: 
+      - brecha_1: Descripcion de la brecha, evidencia que la sustenta, y sugerencia de accion concreta para el gobierno
+      - brecha_2: ...
+    - Privada:
+      - brecha_1: Descripcion de la brecha, evidencia que la sustenta, y sugerencia de accion concreta para el sector privado
+      - brecha_2: ...
 
 4. roadmap: Hoja de Ruta con acciones priorizadas:
    - inversion_publica: 3-5 acciones concretas que requieren inversion o gestion publica

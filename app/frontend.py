@@ -68,8 +68,21 @@ def render_report(report: dict, pueblo: str):
 
     # Gap diagnosis
     st.subheader("Diagnostico de Brechas")
-    for gap in report.get("gap_diagnosis", []):
-        st.markdown(f"- {gap}")
+    gap_diag = report.get("gap_diagnosis", {})
+    publica_gaps = gap_diag.get("publica", []) if isinstance(gap_diag, dict) else []
+    privada_gaps = gap_diag.get("privada", []) if isinstance(gap_diag, dict) else []
+    if publica_gaps:
+        st.markdown("**Brechas Públicas** *(gobierno / infraestructura)*")
+        for gap in publica_gaps:
+            desc = gap.get("description", "") if isinstance(gap, dict) else gap
+            suggestion = gap.get("suggestion", "") if isinstance(gap, dict) else ""
+            st.markdown(f"- **{desc}** — *{suggestion}*")
+    if privada_gaps:
+        st.markdown("**Brechas Privadas** *(gestión / sector privado)*")
+        for gap in privada_gaps:
+            desc = gap.get("description", "") if isinstance(gap, dict) else gap
+            suggestion = gap.get("suggestion", "") if isinstance(gap, dict) else ""
+            st.markdown(f"- **{desc}** — *{suggestion}*")
 
     # Roadmap
     st.subheader("Hoja de Ruta")

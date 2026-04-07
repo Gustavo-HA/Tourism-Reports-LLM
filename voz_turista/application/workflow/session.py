@@ -119,8 +119,13 @@ SCORECARD DE EFICIENCIA TURISTICA:
                 summary += f"  {pilar.upper()}: {score}/10 — {justification}\n"
 
         summary += "\nDIAGNOSTICO DE BRECHAS:\n"
-        for gap in self.report.get("gap_diagnosis", []):
-            summary += f"  - {gap}\n"
+        gap_diag = self.report.get("gap_diagnosis", {})
+        for gap in gap_diag.get("publica", []):
+            desc = gap.get("description", "") if isinstance(gap, dict) else gap.description
+            summary += f"  [Pública] {desc}\n"
+        for gap in gap_diag.get("privada", []):
+            desc = gap.get("description", "") if isinstance(gap, dict) else gap.description
+            summary += f"  [Privada] {desc}\n"
 
         summary += "\nHOJA DE RUTA:\n"
         roadmap = self.report.get("roadmap", {})

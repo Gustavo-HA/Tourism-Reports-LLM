@@ -175,6 +175,25 @@ class RoadmapActions(BaseModel):
     )
 
 
+class GapItem(BaseModel):
+    """Una brecha individual identificada en el diagnóstico."""
+
+    description: str = Field(description="Descripción de la brecha.")
+    evidence: str = Field(description="Evidencia de las reseñas que la sustenta.")
+    suggestion: str = Field(description="Acción concreta para abordar la brecha.")
+
+
+class GapDiagnosis(BaseModel):
+    """Diagnóstico de brechas separado por atribución pública y privada."""
+
+    publica: List[GapItem] = Field(
+        description="Brechas atribuibles al gobierno (infraestructura, regulación, servicios públicos)."
+    )
+    privada: List[GapItem] = Field(
+        description="Brechas atribuibles al sector privado (gestión, calidad de servicio, capacitación)."
+    )
+
+
 class ConsolidatedReport(BaseModel):
     """Briefing de Competitividad Estratégica para autoridades turísticas."""
 
@@ -184,8 +203,8 @@ class ConsolidatedReport(BaseModel):
     scorecard: Scorecard = Field(
         description="Scorecard de Eficiencia Turística con calificación 1-10 por pilar."
     )
-    gap_diagnosis: List[str] = Field(
-        description="Diagnóstico de brechas: recursos infrautilizados por fallas macro (públicas) o micro (privadas)."
+    gap_diagnosis: GapDiagnosis = Field(
+        description="Diagnóstico de brechas separado por atribución pública y privada."
     )
     roadmap: RoadmapActions = Field(
         description="Hoja de ruta: priorización de inversión pública vs capacitación privada."

@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Literal
 from langchain_core.messages import HumanMessage
 from langgraph.types import Send
 
-from voz_turista.application.workflow.prompts import (
+from voz_turista.domain.prompts.templates import (
     PROMPT_AUDIT_REPORT,
     PROMPT_CHAT_RESPONSE,
     PROMPT_CONSOLIDATE_REPORT,

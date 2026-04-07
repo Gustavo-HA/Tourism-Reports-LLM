@@ -66,6 +66,16 @@ create_environment:
 # PROJECT RULES                                                                 #
 #################################################################################
 
+## Run FastAPI backend server
+.PHONY: api
+api:
+	uv run uvicorn app.api:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 600
+
+## Run Streamlit frontend
+.PHONY: frontend
+frontend:
+	uv run streamlit run app/frontend.py --server.port 8501
+
 
 
 #################################################################################

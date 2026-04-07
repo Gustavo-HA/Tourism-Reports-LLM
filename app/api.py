@@ -2,12 +2,15 @@
 
 import csv
 import logging
+import time
 import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+import mlflow
+import mlflow.langchain
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
@@ -96,6 +99,9 @@ async def lifespan(app: FastAPI):
                 )
     pueblos_catalog.sort(key=lambda p: p.display_name)
     logger.info("Cargados %d pueblos del catálogo.", len(pueblos_catalog))
+    mlflow.set_experiment("Voz Turista - API")
+    mlflow.langchain.autolog()
+    logger.info("MLflow tracing activo: %s", mlflow.get_tracking_uri())
     yield
 
 
@@ -134,6 +140,7 @@ def create_session(req: CreateSessionRequest):
         "error_message": None,
         "created_at": datetime.now(),
     }
+    logger.info("Sesión creada: %s → %s", session_id, req.pueblo_magico)
     return SessionResponse(
         session_id=session_id,
         pueblo_magico=req.pueblo_magico,
@@ -160,18 +167,27 @@ def generate_report(session_id: str):
         )
 
     entry["status"] = "generating"
+    pueblo = entry["pueblo_magico"]
+    logger.info("Iniciando generación: %s (%s)", session_id, pueblo)
+    t0 = time.perf_counter()
     try:
-        report = entry["session"].generate_report()
+        with mlflow.start_span(name="generate_report", span_type="chain") as span:
+            span.set_inputs({"session_id": session_id, "pueblo_magico": pueblo})
+            report = entry["session"].generate_report()
+            elapsed = time.perf_counter() - t0
+            span.set_outputs({"status": "ready", "elapsed_seconds": round(elapsed, 1)})
         entry["status"] = "ready"
+        logger.info("Reporte generado: %s en %.1fs", session_id, elapsed)
         return GenerateReportResponse(
             session_id=session_id,
-            status="ready",
+            status="ready", 
             report=report,
             report_summary=entry["session"].get_report_summary(),
         )
     except Exception as e:
         entry["status"] = "error"
         entry["error_message"] = str(e)
+        logger.exception("Error generando reporte para sesión %s", session_id)
         raise HTTPException(
             status_code=500, detail=f"Error generando reporte: {e}"
         ) from e
@@ -203,7 +219,11 @@ def chat(session_id: str, req: ChatRequest):
             status_code=400, detail="El reporte aún no ha sido generado."
         )
 
-    response = entry["session"].chat(req.message)
+    logger.info("Chat: %s | query=%r", session_id, req.message[:60])
+    with mlflow.start_span(name="chat", span_type="chain") as span:
+        span.set_inputs({"session_id": session_id, "pueblo_magico": entry["pueblo_magico"], "message": req.message})
+        response = entry["session"].chat(req.message)
+        span.set_outputs({"response_length": len(response)})
     return ChatResponse(
         response=response,
         history_length=len(entry["session"].messages),

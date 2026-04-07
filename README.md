@@ -21,41 +21,39 @@ The system transforms scattered tourist reviews into structured intelligence for
 
 ### Opportunity Workflow
 
-Located in `voz_turista/application/workflow/`. Uses LangGraph with a Map-Reduce pattern, a self-correction audit loop, and an interactive chat mode. Orchestrated via `OpportunitySession`.
+Located in `voz_turista/application/workflow/`. Uses LangGraph with a Map-Reduce pattern, a self-correction audit loop, and an interactive chat mode.
 
-**Report Generation Graph** (`graph.py: build_report_workflow`):
+**Report Generation Graph**:
 
 ```
 START
-  └─> retrieve_reviews_by_type
-        └─> [parallel] extract_opportunities_node  (chunks, per business type)
-              └─> synthesize_reports
-                    └─> consolidate_report
-                          └─> audit_report
-                                ├─ APROBADO ──> END
-                                └─ RECHAZADO ─> consolidate_report  (up to N iterations)
+  └─> Retrieve reviews by business type
+        └─> [parallel] Extract insights  (chunks, per business type)
+              └─> Synthezise for report
+                    └─> Consolidate the report
+                          └─> Audit the report
+                                ├─ APPROVED ──> END
+                                └─ REJECTED ─> Consolidate again  (up to N iterations)
 ```
 
-**Chat Graph** (`graph.py: build_chat_workflow`):
+**Chat Graph**:
 
 ```
-START -> parse_user_query -> execute_query -> generate_response -> END
+START -> Parse the user query (to vector DB) -> Execute query -> Generate response -> END
 ```
 
-**Session** (`session.py: OpportunitySession`):
-- `generate_report()` — runs the report graph, stores the consolidated report
-- `chat(query)` — runs the chat graph with report context, maintains message history
-- `get_report_summary()` — returns a formatted text summary of the report
-- `clear_chat_history()` — resets the chat message history
+A **Session** consists on:
+- Running the report graph, stores the consolidated report
+- Running the chat graph with report context, maintains message history
+- An option to return a formatted text summary of the report
+- An option to reset the chat message history
 
 ### Web Application
 
 A two-process web stack located in `app/`:
 
-| Component | File | Command |
-|---|---|---|
-| REST API | `app/api.py` | `make api` |
-| Streamlit UI | `app/frontend.py` | `make frontend` |
+* The API created with FastAPI.
+* The frontend created with Streamlit.
 
 The FastAPI backend manages stateful sessions (create → generate → chat) and exposes the following endpoints:
 
@@ -71,7 +69,7 @@ DEL  /api/sessions/{id}                    — delete session
 
 ### Consolidated Report Structure
 
-Each report (`ConsolidatedReport`) contains:
+Each report contains:
 
 1. **Executive Summary** — destination overview and competitive position
 2. **Scorecard de Eficiencia Turística** — 1–10 scores for infraestructura, servicios, atractivos (each with justification)
@@ -106,7 +104,7 @@ Each report (`ConsolidatedReport`) contains:
 
 ### Prerequisites
 
-- Python 3.11+
+- Python 3.12+
 - [uv](https://docs.astral.sh/uv/) package manager
 
 ### Installation
@@ -226,6 +224,5 @@ This project is licensed under the Apache License 2.0 — see the [LICENSE](LICE
 
 ## Acknowledgments
 
-- México's Pueblos Mágicos program.
 - REST-MEX event for the review data.
 - The tourism research community.

@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 mlflow.set_experiment("Tourism Report Generation - Testing")
 mlflow.langchain.autolog()
 
+
 def format_report_md(report: dict, pueblo_magico: str) -> str:
     """Format the generated report as Markdown."""
     lines = []

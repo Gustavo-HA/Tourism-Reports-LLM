@@ -90,7 +90,7 @@ class ChromaClient:
 
         for i in range(0, total_records, batch_size):
             end_idx = min(i + batch_size, total_records)
-            
+
             batch_docs = documents[i:end_idx]
             batch_metas = metadatas[i:end_idx]
             batch_ids = ids[i:end_idx]
@@ -104,7 +104,7 @@ class ChromaClient:
                 logger.info(f"Lote procesado: {i // batch_size + 1} / {total_lotes}")
             except Exception as e:
                 logger.error(f"Error en el lote {i}: {e}")
-        
+
         logger.info("Operación completada.")
 
     def ingest_dataframe(
@@ -138,7 +138,9 @@ class ChromaClient:
 
             chunks = text_splitter.split_text(original_text)
             logger.info(f"Documento dividido en {len(chunks)} chunks.")
-            composite_key = f"{row.Pueblo}-{row.Lugar}-{row.FechaEstadia}-{original_text}"
+            composite_key = (
+                f"{row.Pueblo}-{row.Lugar}-{row.FechaEstadia}-{original_text}"
+            )
             base_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, composite_key))
 
             for i, chunk in enumerate(chunks):
@@ -176,7 +178,12 @@ class ChromaClient:
         Ingesta datos desde un archivo Parquet a ChromaDB con soporte para chunking.
         """
         df = read_restmex_dataframe(parquet_path)
-        self.ingest_dataframe(df, batch_size=batch_size, chunk_size=chunk_size, chunk_overlap=chunk_overlap)
+        self.ingest_dataframe(
+            df,
+            batch_size=batch_size,
+            chunk_size=chunk_size,
+            chunk_overlap=chunk_overlap,
+        )
 
     def query_reviews(
         self,
@@ -243,9 +250,7 @@ class ChromaClient:
 
         # Stage 2: Rerank with cross-encoder
         if use_reranker and len(reviews) > 0:
-            logger.info(
-                "Reranking %d candidatos -> top %d", len(reviews), limit
-            )
+            logger.info("Reranking %d candidatos -> top %d", len(reviews), limit)
             pairs = [(text_query, r["text"]) for r in reviews]
             scores = self.reranker.predict(pairs)
             for review, score in zip(reviews, scores):

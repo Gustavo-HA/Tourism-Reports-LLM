@@ -51,7 +51,13 @@ def build_client(device: str, upsert: bool) -> ChromaClient:
     )
 
 
-def ingest_file(parquet_path: Path, client: ChromaClient, chunk_size: int, chunk_overlap: int, batch_size: int) -> None:
+def ingest_file(
+    parquet_path: Path,
+    client: ChromaClient,
+    chunk_size: int,
+    chunk_overlap: int,
+    batch_size: int,
+) -> None:
     if not parquet_path.exists():
         logger.error("Archivo no encontrado: %s", parquet_path)
         sys.exit(1)
@@ -91,9 +97,27 @@ def main() -> None:
         help=f"Ingestar el dataset completo ({MAIN_DATASET}).",
     )
 
-    parser.add_argument("--chunk-size", type=int, default=200, metavar="N", help="Tamaño del chunk (default: 200).")
-    parser.add_argument("--chunk-overlap", type=int, default=50, metavar="N", help="Solapamiento entre chunks (default: 50).")
-    parser.add_argument("--batch-size", type=int, default=1000, metavar="N", help="Tamaño del lote para ChromaDB (default: 1000).")
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=200,
+        metavar="N",
+        help="Tamaño del chunk (default: 200).",
+    )
+    parser.add_argument(
+        "--chunk-overlap",
+        type=int,
+        default=50,
+        metavar="N",
+        help="Solapamiento entre chunks (default: 50).",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=1000,
+        metavar="N",
+        help="Tamaño del lote para ChromaDB (default: 1000).",
+    )
     parser.add_argument(
         "--device",
         default="cuda",
@@ -108,14 +132,29 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    logger.info("Vector DB: %s / colección: %s", settings.VECTOR_DB_PATH, settings.VECTOR_DB_COLLECTION)
+    logger.info(
+        "Vector DB: %s / colección: %s",
+        settings.VECTOR_DB_PATH,
+        settings.VECTOR_DB_COLLECTION,
+    )
     logger.info("Embedding model: %s", settings.EMBEDDING_MODEL)
-    logger.info("chunk_size=%d, chunk_overlap=%d, batch_size=%d", args.chunk_size, args.chunk_overlap, args.batch_size)
+    logger.info(
+        "chunk_size=%d, chunk_overlap=%d, batch_size=%d",
+        args.chunk_size,
+        args.chunk_overlap,
+        args.batch_size,
+    )
 
     client = build_client(device=args.device, upsert=args.upsert)
 
     if args.parquet:
-        ingest_file(Path(args.parquet), client, args.chunk_size, args.chunk_overlap, args.batch_size)
+        ingest_file(
+            Path(args.parquet),
+            client,
+            args.chunk_size,
+            args.chunk_overlap,
+            args.batch_size,
+        )
 
     elif args.pueblo:
         if not MAIN_DATASET.exists():
@@ -124,13 +163,22 @@ def main() -> None:
         df = read_restmex_dataframe(str(MAIN_DATASET))
         filtered = df[df["Pueblo"] == args.pueblo]
         if filtered.empty:
-            logger.error("No se encontraron reseñas para '%s' en %s", args.pueblo, MAIN_DATASET)
+            logger.error(
+                "No se encontraron reseñas para '%s' en %s", args.pueblo, MAIN_DATASET
+            )
             sys.exit(1)
         logger.info("%d reseñas encontradas para '%s'", len(filtered), args.pueblo)
-        client.ingest_dataframe(filtered, batch_size=args.batch_size, chunk_size=args.chunk_size, chunk_overlap=args.chunk_overlap)
+        client.ingest_dataframe(
+            filtered,
+            batch_size=args.batch_size,
+            chunk_size=args.chunk_size,
+            chunk_overlap=args.chunk_overlap,
+        )
 
     else:  # --all
-        ingest_file(MAIN_DATASET, client, args.chunk_size, args.chunk_overlap, args.batch_size)
+        ingest_file(
+            MAIN_DATASET, client, args.chunk_size, args.chunk_overlap, args.batch_size
+        )
 
 
 if __name__ == "__main__":

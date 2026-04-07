@@ -101,12 +101,12 @@ class OpportunitySession:
             return "No hay reporte generado."
 
         summary = f"""
-{'='*60}
-BRIEFING DE COMPETITIVIDAD ESTRATEGICA: {self.report.get('pueblo_magico', self.pueblo_magico)}
-{'='*60}
+{"=" * 60}
+BRIEFING DE COMPETITIVIDAD ESTRATEGICA: {self.report.get("pueblo_magico", self.pueblo_magico)}
+{"=" * 60}
 
 RESUMEN EJECUTIVO:
-{self.report.get('executive_summary', 'No disponible')}
+{self.report.get("executive_summary", "No disponible")}
 
 SCORECARD DE EFICIENCIA TURISTICA:
 """
@@ -125,22 +125,24 @@ SCORECARD DE EFICIENCIA TURISTICA:
         summary += "\nHOJA DE RUTA:\n"
         roadmap = self.report.get("roadmap", {})
         summary += "  Inversion Publica:\n"
-        for action in (roadmap.get("inversion_publica") or []):
+        for action in roadmap.get("inversion_publica") or []:
             summary += f"    - {action}\n"
         summary += "  Capacitacion Privada:\n"
-        for action in (roadmap.get("capacitacion_privada") or []):
+        for action in roadmap.get("capacitacion_privada") or []:
             summary += f"    - {action}\n"
 
         summary += "\nOPORTUNIDADES TRANSVERSALES:\n"
         for opp in self.report.get("cross_cutting_opportunities", []):
             summary += f"  - {opp}\n"
 
-        summary += f"\n{'='*60}\n"
+        summary += f"\n{'=' * 60}\n"
         summary += "POR TIPO DE NEGOCIO:\n"
 
         for btype, breport in self.report.get("by_business_type", {}).items():
             summary += f"\n{btype}:\n"
-            summary += f"  Resenas analizadas: {breport.get('total_reviews_analyzed', 0)}\n"
+            summary += (
+                f"  Resenas analizadas: {breport.get('total_reviews_analyzed', 0)}\n"
+            )
             summary += f"  Resumen: {breport.get('summary', 'N/A')[:200]}...\n"
             summary += f"  Hallazgos: {len(breport.get('opportunity_areas', []))}\n"
             summary += f"  Brechas: {len(breport.get('gap_diagnosis', []))}\n"

@@ -120,7 +120,11 @@ def retrieve_reviews_by_type_node(state: ReportGenerationState) -> Dict[str, Any
                     )
 
         reviews_by_type[business_type] = type_reviews
-        logger.info("  -> %d reseñas únicas encontradas para %s", len(type_reviews), business_type)
+        logger.info(
+            "  -> %d reseñas únicas encontradas para %s",
+            len(type_reviews),
+            business_type,
+        )
 
     return {"reviews_by_type": reviews_by_type, "iteration_count": 0}
 
@@ -160,7 +164,11 @@ def prepare_analysis_tasks_node(state: ReportGenerationState) -> List[Send]:
 
 def extract_opportunities_node(state: BusinessTypeChunkState) -> Dict[str, Any]:
     """MAP: Extrae insights de oportunidad de un chunk de reseñas."""
-    logger.info("Extrayendo oportunidades: %s chunk %s", state["business_type"], state["chunk_id"])
+    logger.info(
+        "Extrayendo oportunidades: %s chunk %s",
+        state["business_type"],
+        state["chunk_id"],
+    )
 
     # Handle both Review objects and dicts (for compatibility)
     reviews_text = "\n".join(
@@ -180,9 +188,11 @@ def extract_opportunities_node(state: BusinessTypeChunkState) -> Dict[str, Any]:
     )
 
     try:
-        response: ExtractedOpportunityInsightList = _get_llm_provider().generate_structured(
-            messages=[HumanMessage(content=prompt)],
-            schema=ExtractedOpportunityInsightList,
+        response: ExtractedOpportunityInsightList = (
+            _get_llm_provider().generate_structured(
+                messages=[HumanMessage(content=prompt)],
+                schema=ExtractedOpportunityInsightList,
+            )
         )
         # Add business_type to each insight and convert to dict for state accumulation
         insights = []
@@ -192,7 +202,9 @@ def extract_opportunities_node(state: BusinessTypeChunkState) -> Dict[str, Any]:
             insights.append(insight_dict)
         return {"insights": insights}
     except Exception:
-        logger.exception("Error en %s chunk %s", state["business_type"], state["chunk_id"])
+        logger.exception(
+            "Error en %s chunk %s", state["business_type"], state["chunk_id"]
+        )
         return {"insights": []}
 
 
@@ -318,10 +330,7 @@ def audit_report_node(state: ReportGenerationState) -> Dict[str, Any]:
         evidence_reviews.extend(reviews)
 
     evidence_text = "\n".join(
-        [
-            f"- {r.text if hasattr(r, 'text') else r['text']}"
-            for r in evidence_reviews
-        ]
+        [f"- {r.text if hasattr(r, 'text') else r['text']}" for r in evidence_reviews]
     )
 
     prompt = PROMPT_AUDIT_REPORT.format(
@@ -354,7 +363,10 @@ def route_after_audit(
     iteration = state.get("iteration_count", 0)
 
     if audit.get("status") == "APROBADO" or iteration >= 3:
-        logger.info("Reporte %s", "aprobado" if audit.get("status") == "APROBADO" else "max iteraciones")
+        logger.info(
+            "Reporte %s",
+            "aprobado" if audit.get("status") == "APROBADO" else "max iteraciones",
+        )
         return "end"
     else:
         logger.info("Reporte rechazado, iteracion %d/3", iteration)

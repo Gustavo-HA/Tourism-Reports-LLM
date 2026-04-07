@@ -137,7 +137,6 @@ class ChromaClient:
                 continue
 
             chunks = text_splitter.split_text(original_text)
-            logger.info(f"Documento dividido en {len(chunks)} chunks.")
             composite_key = (
                 f"{row.Pueblo}-{row.Lugar}-{row.FechaEstadia}-{original_text}"
             )

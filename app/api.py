@@ -180,7 +180,7 @@ def generate_report(session_id: str):
         logger.info("Reporte generado: %s en %.1fs", session_id, elapsed)
         return GenerateReportResponse(
             session_id=session_id,
-            status="ready", 
+            status="ready",
             report=report,
             report_summary=entry["session"].get_report_summary(),
         )
@@ -221,7 +221,13 @@ def chat(session_id: str, req: ChatRequest):
 
     logger.info("Chat: %s | query=%r", session_id, req.message[:60])
     with mlflow.start_span(name="chat", span_type="chain") as span:
-        span.set_inputs({"session_id": session_id, "pueblo_magico": entry["pueblo_magico"], "message": req.message})
+        span.set_inputs(
+            {
+                "session_id": session_id,
+                "pueblo_magico": entry["pueblo_magico"],
+                "message": req.message,
+            }
+        )
         response = entry["session"].chat(req.message)
         span.set_outputs({"response_length": len(response)})
     return ChatResponse(

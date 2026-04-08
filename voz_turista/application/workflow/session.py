@@ -121,10 +121,14 @@ SCORECARD DE EFICIENCIA TURISTICA:
         summary += "\nDIAGNOSTICO DE BRECHAS:\n"
         gap_diag = self.report.get("gap_diagnosis", {})
         for gap in gap_diag.get("publica", []):
-            desc = gap.get("description", "") if isinstance(gap, dict) else gap.description
+            desc = (
+                gap.get("description", "") if isinstance(gap, dict) else gap.description
+            )
             summary += f"  [Pública] {desc}\n"
         for gap in gap_diag.get("privada", []):
-            desc = gap.get("description", "") if isinstance(gap, dict) else gap.description
+            desc = (
+                gap.get("description", "") if isinstance(gap, dict) else gap.description
+            )
             summary += f"  [Privada] {desc}\n"
 
         summary += "\nHOJA DE RUTA:\n"

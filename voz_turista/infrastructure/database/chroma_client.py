@@ -117,7 +117,6 @@ class ChromaClient:
         """
         Ingesta un DataFrame de reseñas RESTMEX a ChromaDB con soporte para chunking.
         """
-        import pandas as pd
 
         logger.info(f"Procesando {len(df)} registros originales...")
 

@@ -15,6 +15,7 @@ sys.path.append(".")
 
 from voz_turista.application.workflow import OpportunitySession  # noqa: E402
 from voz_turista.config import settings  # noqa: E402
+from voz_turista.domain.prompts.templates import SYSTEM_PROMPT_SPANISH  # noqa: E402
 from voz_turista.infrastructure.llm_providers.litellm_provider import LiteLLMProvider  # noqa: E402
 
 logging.basicConfig(
@@ -148,7 +149,9 @@ def main():
         )
 
         llm_provider = LiteLLMProvider(
-            model_name=settings.LLM_MODEL, temperature=settings.LLM_TEMPERATURE
+            model_name=settings.LLM_MODEL,
+            temperature=settings.LLM_TEMPERATURE,
+            system_prompt=SYSTEM_PROMPT_SPANISH,
         )
         session = OpportunitySession(pueblo_magico, llm_provider=llm_provider)
 

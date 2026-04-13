@@ -16,6 +16,7 @@ from pydantic import BaseModel
 
 from voz_turista.application.workflow import OpportunitySession
 from voz_turista.config import settings
+from voz_turista.domain.prompts.templates import SYSTEM_PROMPT_SPANISH
 from voz_turista.infrastructure.llm_providers.litellm_provider import LiteLLMProvider
 
 logger = logging.getLogger(__name__)
@@ -130,6 +131,7 @@ def create_session(req: CreateSessionRequest):
     provider = LiteLLMProvider(
         model_name=settings.LLM_MODEL,
         temperature=settings.LLM_TEMPERATURE,
+        system_prompt=SYSTEM_PROMPT_SPANISH,
     )
     session = OpportunitySession(req.pueblo_magico, llm_provider=provider)
     session_id = str(uuid.uuid4())

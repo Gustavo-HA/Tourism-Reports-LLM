@@ -1,5 +1,11 @@
 """Prompt templates for the Opportunity Workflow."""
 
+SYSTEM_PROMPT_SPANISH = (
+    "Eres un asistente experto en turismo para México. "
+    "Todos tus análisis, respuestas y reportes deben estar escritos íntegramente en español. "
+    "Nunca uses el inglés en el contenido de tus respuestas."
+)
+
 PROMPT_EXTRACT_OPPORTUNITIES = """
 Analiza las siguientes resenas de {business_type}s en {pueblo_magico} y extrae hallazgos accionables para un briefing de inteligencia turistica dirigido a autoridades.
 
@@ -20,7 +26,7 @@ Para cada hallazgo, proporciona:
   - Servicio de Soporte: Hospedaje, restaurantes, transporte, guias, comercio
   - Gestion de Destino: Planeacion, promocion, regulacion, limpieza urbana, seguridad
 - urgencia: Alta (impacto directo en competitividad turistica), Media (molestia frecuente que afecta percepcion), Baja (mejora deseable pero no critica)
-- actionable_suggestion: Una accion concreta para abordar el hallazgo
+- sugerencia_accionable: Una accion concreta para abordar el hallazgo
 
 Reseñas a analizar:
 {reviews}
@@ -30,9 +36,9 @@ PROMPT_SYNTHESIZE_OPPORTUNITIES = """
 Genera un reporte de inteligencia turistica en español para {business_type}s en {pueblo_magico} dirigido a autoridades.
 
 Basandote en los insights recopilados, genera:
-1. summary: Resumen ejecutivo (2-3 oraciones) de los principales hallazgos para este tipo de negocio
-2. strengths: Lista de 3-5 fortalezas identificadas
-3. gap_diagnosis: Lista de 3-5 brechas criticas — recursos infrautilizados por fallas publicas (gobierno/infraestructura) o privadas (gestion de negocios). Indica claramente si la brecha es de atribucion Publica o Privada.
+1. resumen: Resumen ejecutivo (2-3 oraciones) de los principales hallazgos para este tipo de negocio
+2. fortalezas: Lista de 3-5 fortalezas identificadas
+3. diagnostico_brechas: Lista de 3-5 brechas criticas — recursos infrautilizados por fallas publicas (gobierno/infraestructura) o privadas (gestion de negocios). Indica claramente si la brecha es de atribucion Publica o Privada.
 
 Insights recopilados:
 {insights}
@@ -45,26 +51,28 @@ Genera un Briefing de Competitividad Estrategica para las autoridades turisticas
 
 Estructura del briefing:
 
-1. executive_summary: Vision general del destino — principales fortalezas, debilidades criticas y posicion competitiva (3-4 oraciones).
+1. resumen_ejecutivo: Vision general del destino — principales fortalezas, debilidades criticas y posicion competitiva (3-4 oraciones).
 
 2. scorecard: Scorecard de Eficiencia Turistica. Califica del 1 al 10 cada pilar con una justificacion breve basada en la evidencia:
    - infraestructura: Transporte, senalizacion, accesos, servicios basicos
    - servicios: Hospedaje, restaurantes, guias, atencion al turista
    - atractivos: Recursos naturales, culturales, experiencias ofrecidas
 
-3. gap_diagnosis: Diagnostico de Brechas (5-8 items). Identifica recursos infrautilizados por fallas macro (publicas: gobierno, infraestructura) o micro (privadas: gestion de negocios). Cada brecha debe ser especifica y accionable. Estas brechas deben ser subsecciones del briefing, no solo items en una lista:
-    - Pública: 
-      - brecha_1: Descripcion de la brecha, evidencia que la sustenta, y sugerencia de accion concreta para el gobierno
-      - brecha_2: ...
-    - Privada:
-      - brecha_1: Descripcion de la brecha, evidencia que la sustenta, y sugerencia de accion concreta para el sector privado
-      - brecha_2: ...
+3. diagnostico_brechas: Diagnostico de Brechas (5-8 items). Identifica recursos infrautilizados por fallas macro (publicas: gobierno, infraestructura) o micro (privadas: gestion de negocios). Cada brecha debe ser especifica y accionable. Estas brechas deben ser subsecciones del briefing, no solo items en una lista:
+    - publica:
+      - descripcion: Descripcion de la brecha
+      - evidencia: Evidencia que la sustenta
+      - sugerencia: Accion concreta para el gobierno
+    - privada:
+      - descripcion: Descripcion de la brecha
+      - evidencia: Evidencia que la sustenta
+      - sugerencia: Accion concreta para el sector privado
 
 4. roadmap: Hoja de Ruta con acciones priorizadas:
    - inversion_publica: 3-5 acciones concretas que requieren inversion o gestion publica
    - capacitacion_privada: 3-5 acciones concretas para capacitacion o mejora del sector privado
 
-5. cross_cutting_opportunities: Patrones transversales que afectan a multiples tipos de negocio (3-5 items).
+5. oportunidades_transversales: Patrones transversales que afectan a multiples tipos de negocio (3-5 items).
 
 Reportes por tipo de negocio:
 {business_reports}
@@ -100,17 +108,17 @@ Metadatos disponibles para filtrar:
 Consulta del usuario: "{user_query}"
 
 Responde con:
-1. text_query: La consulta semantica para buscar (reescrita si es necesario para mejor recuperacion)
-2. filters: Diccionario con los filtros detectados (solo incluir los mencionados explicitamente)
-3. requires_report_context: Boolean indicando si la consulta hace referencia al reporte generado
+1. texto_consulta: La consulta semantica para buscar (reescrita si es necesario para mejor recuperacion)
+2. filtros: Diccionario con los filtros detectados (solo incluir los mencionados explicitamente)
+3. requiere_contexto: Boolean indicando si la consulta hace referencia al reporte generado
 
 Ejemplos:
 - "Muestrame quejas sobre hoteles del 2024" ->
-  text_query: "quejas problemas insatisfaccion", filters: {{"type": "Hotel", "year": 2024}}, requires_report_context: false
+  texto_consulta: "quejas problemas insatisfaccion", filtros: {{"tipo": "Hotel", "year": 2024}}, requiere_contexto: false
 - "Dame mas detalles sobre el problema de limpieza que mencionaste" ->
-  text_query: "limpieza suciedad higiene", filters: {{}}, requires_report_context: true
+  texto_consulta: "limpieza suciedad higiene", filtros: {{}}, requiere_contexto: true
 - "Que dicen de los restaurantes con mala calificacion?" ->
-  text_query: "mala experiencia problemas", filters: {{"type": "Restaurant", "polarity": [1, 2]}}, requires_report_context: false
+  texto_consulta: "mala experiencia problemas", filtros: {{"tipo": "Restaurant", "polaridad": [1, 2]}}, requiere_contexto: false
 """
 
 PROMPT_CHAT_RESPONSE = """

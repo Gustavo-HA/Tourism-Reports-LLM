@@ -3,6 +3,17 @@
 import httpx
 import streamlit as st
 
+from report_exporter import report_to_pdf
+
+
+@st.cache_data(show_spinner=False)
+def _build_pdf(report_json: str, pueblo_magico: str) -> bytes:
+    """Cache PDF bytes keyed by report content + pueblo."""
+    import json
+
+    return report_to_pdf(json.loads(report_json), pueblo_magico)
+
+
 API_BASE = "http://localhost:8000"
 REQUEST_TIMEOUT = 600.0
 
@@ -50,7 +61,7 @@ def render_report(report: dict, pueblo: str):
 
     # Executive summary
     st.subheader("Resumen Ejecutivo")
-    st.write(report.get("executive_summary", "No disponible"))
+    st.write(report.get("resumen_ejecutivo", "No disponible"))
 
     # Scorecard
     st.subheader("Scorecard de Eficiencia Turistica")
@@ -64,24 +75,24 @@ def render_report(report: dict, pueblo: str):
                     label=pilar.capitalize(),
                     value=f"{pilar_data.get('score', 'N/A')}/10",
                 )
-                st.caption(pilar_data.get("justification", ""))
+                st.caption(pilar_data.get("justificacion", ""))
 
     # Gap diagnosis
     st.subheader("Diagnostico de Brechas")
-    gap_diag = report.get("gap_diagnosis", {})
+    gap_diag = report.get("diagnostico_brechas", {})
     publica_gaps = gap_diag.get("publica", []) if isinstance(gap_diag, dict) else []
     privada_gaps = gap_diag.get("privada", []) if isinstance(gap_diag, dict) else []
     if publica_gaps:
         st.markdown("**Brechas Públicas** *(gobierno / infraestructura)*")
         for gap in publica_gaps:
-            desc = gap.get("description", "") if isinstance(gap, dict) else gap
-            suggestion = gap.get("suggestion", "") if isinstance(gap, dict) else ""
+            desc = gap.get("descripcion", "") if isinstance(gap, dict) else gap
+            suggestion = gap.get("sugerencia", "") if isinstance(gap, dict) else ""
             st.markdown(f"- **{desc}** — *{suggestion}*")
     if privada_gaps:
         st.markdown("**Brechas Privadas** *(gestión / sector privado)*")
         for gap in privada_gaps:
-            desc = gap.get("description", "") if isinstance(gap, dict) else gap
-            suggestion = gap.get("suggestion", "") if isinstance(gap, dict) else ""
+            desc = gap.get("descripcion", "") if isinstance(gap, dict) else gap
+            suggestion = gap.get("sugerencia", "") if isinstance(gap, dict) else ""
             st.markdown(f"- **{desc}** — *{suggestion}*")
 
     # Roadmap
@@ -99,23 +110,23 @@ def render_report(report: dict, pueblo: str):
 
     # Cross-cutting opportunities
     st.subheader("Oportunidades Transversales")
-    for opp in report.get("cross_cutting_opportunities", []):
+    for opp in report.get("oportunidades_transversales", []):
         st.markdown(f"- {opp}")
 
     # Per business type
     st.subheader("Detalle por Tipo de Negocio")
     for btype, breport in report.get("by_business_type", {}).items():
         with st.expander(
-            f"{btype} ({breport.get('total_reviews_analyzed', 0)} reseñas)"
+            f"{btype} ({breport.get('total_resenas_analizadas', 0)} reseñas)"
         ):
-            st.write(breport.get("summary", "N/A"))
-            if breport.get("strengths"):
+            st.write(breport.get("resumen", "N/A"))
+            if breport.get("fortalezas"):
                 st.markdown("**Fortalezas:**")
-                for s in breport["strengths"]:
+                for s in breport["fortalezas"]:
                     st.markdown(f"- {s}")
-            if breport.get("gap_diagnosis"):
+            if breport.get("diagnostico_brechas"):
                 st.markdown("**Brechas:**")
-                for g in breport["gap_diagnosis"]:
+                for g in breport["diagnostico_brechas"]:
                     st.markdown(f"- {g}")
 
 
@@ -244,6 +255,22 @@ elif st.session_state.phase == "chat":
                 pass
             st.session_state.chat_history = []
             st.rerun()
+
+        st.divider()
+        with st.spinner("Preparando PDF..."):
+            import json
+
+            pdf_bytes = _build_pdf(
+                json.dumps(st.session_state.report, ensure_ascii=False),
+                st.session_state.pueblo_magico,
+            )
+        st.download_button(
+            label="Descargar PDF",
+            data=pdf_bytes,
+            file_name=f"briefing_{st.session_state.pueblo_magico}.pdf",
+            mime="application/pdf",
+            use_container_width=True,
+        )
 
     tab_report, tab_chat = st.tabs(["Reporte", "Chat"])
 

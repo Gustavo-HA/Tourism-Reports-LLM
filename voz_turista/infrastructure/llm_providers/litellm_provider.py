@@ -15,9 +15,15 @@ class LiteLLMProvider(LLMProvider):
     Formato de modelo: "gemini/gemini-2.5-flash", "gpt-4o", "groq/llama-3.1-70b", etc.
     """
 
-    def __init__(self, model_name: str, temperature: float = 0.0):
+    def __init__(
+        self,
+        model_name: str,
+        temperature: float = 0.0,
+        system_prompt: str | None = None,
+    ):
         self.model_name = model_name
         self.temperature = temperature
+        self.system_prompt = system_prompt
 
     def generate(self, messages: List[BaseMessage], **kwargs) -> str:
         response = litellm.completion(
@@ -60,14 +66,16 @@ class LiteLLMProvider(LLMProvider):
             },
         }
 
-    @staticmethod
-    def _convert_messages(messages: List[BaseMessage]) -> List[Dict[str, str]]:
+    def _convert_messages(self, messages: List[BaseMessage]) -> List[Dict[str, str]]:
         role_map = {
             HumanMessage: "user",
             SystemMessage: "system",
             AIMessage: "assistant",
         }
-        return [
+        converted = [
             {"role": role_map.get(type(m), "user"), "content": m.content}
             for m in messages
         ]
+        if self.system_prompt and not any(m["role"] == "system" for m in converted):
+            converted.insert(0, {"role": "system", "content": self.system_prompt})
+        return converted

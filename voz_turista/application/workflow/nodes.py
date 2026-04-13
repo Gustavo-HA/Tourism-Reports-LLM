@@ -113,9 +113,9 @@ def retrieve_reviews_by_type_node(state: ReportGenerationState) -> Dict[str, Any
                     type_reviews.append(
                         Review(
                             id=r["id"],
-                            text=r["text"],
+                            texto=r["text"],
                             metadata=r["metadata"],
-                            distance=r["distance"],
+                            distancia=r["distance"],
                         )
                     )
 
@@ -176,7 +176,7 @@ def extract_opportunities_node(state: BusinessTypeChunkState) -> Dict[str, Any]:
             f"ID: {r.id} | "
             f"Calificacion: {r.metadata.get('polarity', 'N/A')} | "
             f"Año : {r.metadata.get('year', 'N/A')} | "
-            f"Texto: {r.text}"
+            f"Texto: {r.texto}"
             for r in state["reviews"]
         ]
     )
@@ -194,11 +194,11 @@ def extract_opportunities_node(state: BusinessTypeChunkState) -> Dict[str, Any]:
                 schema=ExtractedOpportunityInsightList,
             )
         )
-        # Add business_type to each insight and convert to dict for state accumulation
+        # Add tipo_negocio to each insight and convert to dict for state accumulation
         insights = []
         for insight in response.insights:
             insight_dict = insight.model_dump()
-            insight_dict["business_type"] = state["business_type"]
+            insight_dict["tipo_negocio"] = state["business_type"]
             insights.append(insight_dict)
         return {"insights": insights}
     except Exception:
@@ -217,7 +217,7 @@ def synthesize_reports_node(state: ReportGenerationState) -> Dict[str, Any]:
     for business_type in BUSINESS_TYPES:
         # Filter insights for this business type
         type_insights = [
-            i for i in state["insights"] if i.get("business_type") == business_type
+            i for i in state["insights"] if i.get("tipo_negocio") == business_type
         ]
 
         # Get reviews count (handle both Review objects and dicts)
@@ -226,17 +226,17 @@ def synthesize_reports_node(state: ReportGenerationState) -> Dict[str, Any]:
 
         if not type_insights:
             business_reports[business_type] = {
-                "business_type": business_type,
-                "total_reviews_analyzed": total_reviews,
-                "opportunity_areas": [],
-                "strengths": [],
-                "summary": "No se encontraron suficientes reseñas para analizar.",
+                "tipo_negocio": business_type,
+                "total_resenas_analizadas": total_reviews,
+                "areas_oportunidad": [],
+                "fortalezas": [],
+                "resumen": "No se encontraron suficientes reseñas para analizar.",
             }
             continue
 
         insights_text = "\n".join(
             [
-                f"- [{i['urgencia']}] {i['insight']} (Atribución: {i['atribucion']}, Dimensión: {i['dimension']}) -> Sugerencia: {i['actionable_suggestion']}"
+                f"- [{i['urgencia']}] {i['insight']} (Atribución: {i['atribucion']}, Dimensión: {i['dimension']}) -> Sugerencia: {i['sugerencia_accionable']}"
                 for i in type_insights
             ]
         )
@@ -253,22 +253,22 @@ def synthesize_reports_node(state: ReportGenerationState) -> Dict[str, Any]:
                 messages=[HumanMessage(content=prompt)], schema=BusinessTypeSynthesis
             )
             business_reports[business_type] = {
-                "business_type": business_type,
-                "total_reviews_analyzed": total_reviews,
-                "opportunity_areas": type_insights,
-                "strengths": response.strengths,
-                "gap_diagnosis": response.gap_diagnosis,
-                "summary": response.summary,
+                "tipo_negocio": business_type,
+                "total_resenas_analizadas": total_reviews,
+                "areas_oportunidad": type_insights,
+                "fortalezas": response.fortalezas,
+                "diagnostico_brechas": response.diagnostico_brechas,
+                "resumen": response.resumen,
             }
         except Exception as e:
             logger.exception("Error sintetizando %s", business_type)
             business_reports[business_type] = {
-                "business_type": business_type,
-                "total_reviews_analyzed": total_reviews,
-                "opportunity_areas": type_insights,
-                "strengths": [],
-                "gap_diagnosis": [],
-                "summary": f"Error al generar resumen: {e}",
+                "tipo_negocio": business_type,
+                "total_resenas_analizadas": total_reviews,
+                "areas_oportunidad": type_insights,
+                "fortalezas": [],
+                "diagnostico_brechas": [],
+                "resumen": f"Error al generar resumen: {e}",
             }
 
     return {"business_reports": business_reports}
@@ -281,12 +281,12 @@ def consolidate_report_node(state: ReportGenerationState) -> Dict[str, Any]:
     reports_text = ""
     for btype, report in state["business_reports"].items():
         reports_text += f"\n## {btype}\n"
-        reports_text += f"Reseñas analizadas: {report['total_reviews_analyzed']}\n"
-        reports_text += f"Resumen: {report['summary']}\n"
-        reports_text += f"Fortalezas: {', '.join(report['strengths'])}\n"
-        reports_text += f"Brechas: {'; '.join(report.get('gap_diagnosis', []))}\n"
-        reports_text += f"Hallazgos ({len(report['opportunity_areas'])}):\n"
-        for opp in report["opportunity_areas"][:5]:  # Top 5
+        reports_text += f"Reseñas analizadas: {report['total_resenas_analizadas']}\n"
+        reports_text += f"Resumen: {report['resumen']}\n"
+        reports_text += f"Fortalezas: {', '.join(report['fortalezas'])}\n"
+        reports_text += f"Brechas: {'; '.join(report.get('diagnostico_brechas', []))}\n"
+        reports_text += f"Hallazgos ({len(report['areas_oportunidad'])}):\n"
+        for opp in report["areas_oportunidad"][:5]:  # Top 5
             reports_text += f"  - [{opp['urgencia']}] ({opp['atribucion']}/{opp['dimension']}) {opp['insight']}\n"
 
     prompt = PROMPT_CONSOLIDATE_REPORT.format(
@@ -294,28 +294,32 @@ def consolidate_report_node(state: ReportGenerationState) -> Dict[str, Any]:
         business_reports=reports_text,
     )
 
-    try:
-        response: ConsolidatedReport = _get_llm_provider().generate_structured(
-            messages=[HumanMessage(content=prompt)], schema=ConsolidatedReport
-        )
-        # Convert to dict and add business reports context
-        consolidated = response.model_dump()
-        consolidated["by_business_type"] = state["business_reports"]
-        consolidated["pueblo_magico"] = state["pueblo_magico"]
-        return {"consolidated_report": consolidated}
-    except Exception as e:
-        logger.exception("Error consolidando reporte")
-        return {
-            "consolidated_report": {
-                "executive_summary": f"Error al generar reporte: {e}",
-                "scorecard": {},
-                "gap_diagnosis": [],
-                "roadmap": {"inversion_publica": [], "capacitacion_privada": []},
-                "cross_cutting_opportunities": [],
-                "by_business_type": state["business_reports"],
-                "pueblo_magico": state["pueblo_magico"],
-            }
+    last_exc: Exception | None = None
+    for attempt in range(1, 4):
+        try:
+            response: ConsolidatedReport = _get_llm_provider().generate_structured(
+                messages=[HumanMessage(content=prompt)], schema=ConsolidatedReport
+            )
+            consolidated = response.model_dump()
+            consolidated["by_business_type"] = state["business_reports"]
+            consolidated["pueblo_magico"] = state["pueblo_magico"]
+            return {"consolidated_report": consolidated}
+        except Exception as e:
+            last_exc = e
+            logger.warning("Intento %d/3 fallido al consolidar reporte: %s", attempt, e)
+
+    logger.error("Error consolidando reporte tras 3 intentos", exc_info=last_exc)
+    return {
+        "consolidated_report": {
+            "resumen_ejecutivo": f"Error al generar reporte: {last_exc}",
+            "scorecard": {},
+            "diagnostico_brechas": {"publica": [], "privada": []},
+            "roadmap": {"inversion_publica": [], "capacitacion_privada": []},
+            "oportunidades_transversales": [],
+            "by_business_type": state["business_reports"],
+            "pueblo_magico": state["pueblo_magico"],
         }
+    }
 
 
 def audit_report_node(state: ReportGenerationState) -> Dict[str, Any]:
@@ -328,7 +332,7 @@ def audit_report_node(state: ReportGenerationState) -> Dict[str, Any]:
     for reviews in state["reviews_by_type"].values():
         evidence_reviews.extend(reviews)
 
-    evidence_text = "\n".join([f"- {r.text}" for r in evidence_reviews])
+    evidence_text = "\n".join([f"- {r.texto}" for r in evidence_reviews])
 
     prompt = PROMPT_AUDIT_REPORT.format(
         pueblo_magico=state["pueblo_magico"],
@@ -347,7 +351,7 @@ def audit_report_node(state: ReportGenerationState) -> Dict[str, Any]:
     except Exception as e:
         logger.exception("Error en auditoría")
         return {
-            "audit_result": {"status": "APROBADO", "corrections": [], "error": str(e)},
+            "audit_result": {"status": "APROBADO", "correcciones": [], "error": str(e)},
             "iteration_count": state.get("iteration_count", 0) + 1,
         }
 
@@ -387,8 +391,8 @@ def parse_user_query_node(state: ChatState) -> Dict[str, Any]:
             messages=[HumanMessage(content=prompt)], schema=ParsedQuery
         )
         return {
-            "text_query": response.text_query or state["user_message"],
-            "parsed_filters": response.filters.model_dump(exclude_none=True),
+            "text_query": response.texto_consulta or state["user_message"],
+            "parsed_filters": response.filtros.model_dump(exclude_none=True),
         }
     except Exception:
         logger.exception("Error parseando consulta")
@@ -415,9 +419,9 @@ def execute_query_node(state: ChatState) -> Dict[str, Any]:
         reviews = [
             Review(
                 id=r["id"],
-                text=r["text"],
+                texto=r["text"],
                 metadata=r["metadata"],
-                distance=r["distance"],
+                distancia=r["distance"],
             )
             for r in raw_reviews
         ]
@@ -443,22 +447,22 @@ def generate_response_node(state: ChatState) -> Dict[str, Any]:
         if isinstance(scorecard.get(p), dict)
     )
     roadmap = report.get("roadmap", {})
-    gap_diag = report.get("gap_diagnosis", {})
+    gap_diag = report.get("diagnostico_brechas", {})
     if isinstance(gap_diag, dict):
         all_gaps = [
-            g.get("description", "") if isinstance(g, dict) else g
+            g.get("descripcion", "") if isinstance(g, dict) else g
             for g in gap_diag.get("publica", []) + gap_diag.get("privada", [])
         ]
     else:
         all_gaps = gap_diag
     report_summary = f"""
 Pueblo Mágico: {report.get("pueblo_magico", state["pueblo_magico"])}
-Resumen Ejecutivo: {report.get("executive_summary", "No disponible")}
+Resumen Ejecutivo: {report.get("resumen_ejecutivo", "No disponible")}
 Scorecard: {scorecard_text or "No disponible"}
 Brechas: {"; ".join(all_gaps[:3])}
 Inversión Pública: {"; ".join((roadmap.get("inversion_publica") or [])[:3])}
 Capacitación Privada: {"; ".join((roadmap.get("capacitacion_privada") or [])[:3])}
-Oportunidades Transversales: {", ".join(report.get("cross_cutting_opportunities", [])[:3])}
+Oportunidades Transversales: {", ".join(report.get("oportunidades_transversales", [])[:3])}
 """
 
     # Format query results (handle both Review objects and dicts)
@@ -468,7 +472,7 @@ Oportunidades Transversales: {", ".join(report.get("cross_cutting_opportunities"
             [
                 f"- [{r.metadata.get('type', 'N/A')}] "
                 f"(Cal: {r.metadata.get('polarity', 'N/A')}) "
-                f"{r.text[:200]}..."
+                f"{r.texto[:200]}..."
                 for r in results[:10]
             ]
         )

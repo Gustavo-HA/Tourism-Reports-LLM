@@ -2,54 +2,15 @@ from typing import Any, Dict, List, Literal, Optional
 
 from pydantic import BaseModel, Field
 
+class Review(BaseModel):
+    """Representa una reseña individual recuperada de ChromaDB."""
 
-# ============== Base Workflow Schemas ==============
-# Used by voz_turista/application/workflow.py
-
-
-class Insight(BaseModel):
-    """Estructura de un insight individual extraído de reseñas."""
-
-    idx_review: List[str] = Field(
-        description="IDs de referencia de las reseñas que sustentan el hallazgo."
+    id: str = Field(description="ID único de la reseña en ChromaDB.")
+    text: str = Field(description="Contenido de la reseña.")
+    metadata: Dict[str, Any] = Field(
+        description="Metadatos de la reseña (town, polarity, type, place, month, year)."
     )
-    insight: str = Field(description="Hallazgo conciso y accionable.")
-    atribucion: Literal["Publica", "Privada"] = Field(
-        description="Clasifica si el problema/oportunidad recae en el gobierno (Publica) o en los negocios privados (Privada)."
-    )
-    dimension: Literal[
-        "Recurso Natural", "Servicio de Soporte", "Gestion de Destino"
-    ] = Field(description="Dimensión del hallazgo.")
-    urgencia: Literal["Alta", "Media", "Baja"] = Field(
-        description="Nivel de urgencia según el impacto en la competitividad turística."
-    )
-
-
-class InsightList(BaseModel):
-    """Lista de insights extraídos."""
-
-    insights: List[Insight]
-
-
-class ReportSection(BaseModel):
-    """Sección del reporte para un pilar específico (Scorecard, Gaps, Roadmap)."""
-
-    score: int = Field(description="Calificación del 1 al 10.", ge=1, le=10)
-    summary: str = Field(description="Resumen ejecutivo de la sección.")
-    actions: List[str] = Field(description="Acciones concretas sugeridas.")
-
-
-class FullReport(BaseModel):
-    """Estructura del reporte sintetizado final."""
-
-    scorecard: Dict[str, int] = Field(
-        description="Puntajes por pilar (Infraestructura, Servicios, Atractivos)."
-    )
-    gaps: List[str] = Field(description="Lista de brechas identificadas.")
-    roadmap: Dict[str, List[str]] = Field(
-        description="Hoja de ruta con acciones priorizadas (Publica vs Privada)."
-    )
-
+    distance: float = Field(description="Distancia de similitud desde la consulta.")
 
 class AuditResult(BaseModel):
     """Resultado de la auditoría del reporte."""
@@ -61,22 +22,6 @@ class AuditResult(BaseModel):
     confidence_score: Optional[float] = Field(
         default=None, description="Puntuación de confianza del auditor (0-1)."
     )
-
-
-# ============== Opportunity Workflow Schemas ==============
-# Used by voz_turista/application/opportunity_workflow/
-
-
-class Review(BaseModel):
-    """Representa una reseña individual recuperada de ChromaDB."""
-
-    id: str = Field(description="ID único de la reseña en ChromaDB.")
-    text: str = Field(description="Contenido de la reseña.")
-    metadata: Dict[str, Any] = Field(
-        description="Metadatos de la reseña (town, polarity, type, place, month, year)."
-    )
-    distance: float = Field(description="Distancia de similitud desde la consulta.")
-
 
 class ExtractedOpportunityInsight(BaseModel):
     """Insight extraído por el LLM (sin business_type, se añade después)."""

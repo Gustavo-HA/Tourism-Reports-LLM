@@ -443,11 +443,19 @@ def generate_response_node(state: ChatState) -> Dict[str, Any]:
         if isinstance(scorecard.get(p), dict)
     )
     roadmap = report.get("roadmap", {})
+    gap_diag = report.get("gap_diagnosis", {})
+    if isinstance(gap_diag, dict):
+        all_gaps = [
+            g.get("description", "") if isinstance(g, dict) else g
+            for g in gap_diag.get("publica", []) + gap_diag.get("privada", [])
+        ]
+    else:
+        all_gaps = gap_diag
     report_summary = f"""
 Pueblo Mágico: {report.get("pueblo_magico", state["pueblo_magico"])}
 Resumen Ejecutivo: {report.get("executive_summary", "No disponible")}
 Scorecard: {scorecard_text or "No disponible"}
-Brechas: {"; ".join(report.get("gap_diagnosis", [])[:3])}
+Brechas: {"; ".join(all_gaps[:3])}
 Inversión Pública: {"; ".join((roadmap.get("inversion_publica") or [])[:3])}
 Capacitación Privada: {"; ".join((roadmap.get("capacitacion_privada") or [])[:3])}
 Oportunidades Transversales: {", ".join(report.get("cross_cutting_opportunities", [])[:3])}

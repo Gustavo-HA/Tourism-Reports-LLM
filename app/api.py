@@ -12,8 +12,15 @@ from typing import Any
 import mlflow
 import mlflow.langchain
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from app.report_cache import (
+    has_cache,
+    load_cached_report,
+    pdf_path_for,
+    save_report_cache,
+)
 from voz_turista.application.workflow import OpportunitySession
 from voz_turista.config import settings
 from voz_turista.domain.prompts.templates import SYSTEM_PROMPT_SPANISH
@@ -168,8 +175,21 @@ def generate_report(session_id: str):
             report_summary=s.get_report_summary(),
         )
 
-    entry["status"] = "generating"
     pueblo = entry["pueblo_magico"]
+
+    cached = load_cached_report(pueblo)
+    if cached is not None:
+        entry["session"].report = cached
+        entry["status"] = "ready"
+        logger.info("Cache hit para %s — reporte cargado de disco.", pueblo)
+        return GenerateReportResponse(
+            session_id=session_id,
+            status="ready",
+            report=cached,
+            report_summary=entry["session"].get_report_summary(),
+        )
+
+    entry["status"] = "generating"
     logger.info("Iniciando generación: %s (%s)", session_id, pueblo)
     t0 = time.perf_counter()
     try:
@@ -178,6 +198,7 @@ def generate_report(session_id: str):
             report = entry["session"].generate_report()
             elapsed = time.perf_counter() - t0
             span.set_outputs({"status": "ready", "elapsed_seconds": round(elapsed, 1)})
+        save_report_cache(pueblo, report)
         entry["status"] = "ready"
         logger.info("Reporte generado: %s en %.1fs", session_id, elapsed)
         return GenerateReportResponse(
@@ -193,6 +214,30 @@ def generate_report(session_id: str):
         raise HTTPException(
             status_code=500, detail=f"Error generando reporte: {e}"
         ) from e
+
+
+@app.get("/api/sessions/{session_id}/pdf")
+def download_pdf(session_id: str):
+    entry = sessions.get(session_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada.")
+    pueblo = entry["pueblo_magico"]
+    pdf_path = pdf_path_for(pueblo)
+    if not pdf_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="PDF no disponible. Genera el reporte primero.",
+        )
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        filename=f"briefing_{pueblo}.pdf",
+    )
+
+
+@app.get("/api/pueblos/{pueblo_magico}/cached")
+def is_cached(pueblo_magico: str):
+    return {"pueblo_magico": pueblo_magico, "cached": has_cache(pueblo_magico)}
 
 
 @app.get("/api/sessions/{session_id}", response_model=StatusResponse)

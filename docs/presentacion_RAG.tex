@@ -1,0 +1,697 @@
+\documentclass[10pt,aspectratio=169]{beamer}
+
+% =============================================================
+%  Presentación técnica del pipeline RAG
+%  Proyecto: Tourism-Reports-LLM (Pueblos Mágicos)
+% =============================================================
+
+\usetheme{metropolis}
+\usepackage[utf8]{inputenc}
+\usepackage[spanish,es-tabla]{babel}
+\usepackage{amsmath,amssymb,amsthm,bm}
+\usepackage{mathtools}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{hyperref}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds,calc}
+
+% --- Colores ---
+\definecolor{primary}{HTML}{1F4E79}
+\definecolor{accent}{HTML}{C0504D}
+\definecolor{soft}{HTML}{EAF1F8}
+\definecolor{good}{HTML}{2E7D32}
+
+% --- Listings (Python / JSON) ---
+\lstdefinestyle{py}{
+    basicstyle=\ttfamily\scriptsize,
+    keywordstyle=\color{primary}\bfseries,
+    commentstyle=\color{gray}\itshape,
+    stringstyle=\color{accent},
+    showstringspaces=false,
+    breaklines=true,
+    frame=single,
+    rulecolor=\color{gray!40},
+    language=Python,
+}
+
+% --- Macros matemáticos ---
+\newcommand{\vq}{\mathbf{q}}
+\newcommand{\vd}{\mathbf{d}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+\newcommand{\T}{^{\!\top}}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclareMathOperator*{\argmin}{arg\,min}
+\DeclareMathOperator{\softmax}{softmax}
+\DeclareMathOperator{\sgn}{sgn}
+
+% --- Metadatos ---a
+\title{Pipeline RAG para Inteligencia Turística}
+\subtitle{Metodología técnica \\
+\small{Reseñas RESTMEX de Pueblos Mágicos}}
+\author{Gustavo Hernández Angeles}
+\date{\today}
+
+\begin{document}
+
+% =============================================================
+\maketitle
+% =============================================================
+
+\begin{frame}{Agenda}
+	\tableofcontents
+\end{frame}
+
+% =============================================================
+\section{0. Visión global del pipeline}
+% =============================================================
+
+\begin{frame}{Pipeline general (cinco fases)}
+	\centering
+	\begin{tikzpicture}[
+		font=\scriptsize,
+		node distance=4mm and 6mm,
+		every node/.style={align=center},
+		box/.style={rectangle, rounded corners=2pt, draw=primary, thick,
+				fill=soft, minimum width=24mm, minimum height=10mm,
+				inner sep=2pt},
+		phase/.style={rectangle, rounded corners=3pt, draw=accent, very thick,
+				fill=accent!10, minimum width=26mm, minimum height=12mm,
+				inner sep=2pt, font=\scriptsize\bfseries},
+		arr/.style={-{Stealth[length=2mm]}, thick, primary},
+		]
+
+		% Fase 1
+		\node[phase] (chunk)  {Chunking \\ \scriptsize(Recursive)};
+		\node[phase, right=of chunk] (emb)    {Embedding \\ \scriptsize SBERT-es};
+		\node[phase, right=of emb]   (hnsw)   {Indexado HNSW \\ \scriptsize(coseno)};
+
+		% Fase 2
+		\node[phase, below=10mm of chunk] (filt)  {Filtros\\meta\,$\mathcal{F}$};
+		\node[phase, right=of filt]       (ann)   {ANN top-$3K$ \\ \scriptsize bi-encoder};
+		\node[phase, right=of ann]        (ce)    {Cross-encoder \\ \scriptsize top-$K$};
+
+		% Fase 3
+		\node[phase, below=10mm of filt]  (gen)   {LLM \\ \scriptsize gpt-oss-120b};
+		\node[phase, right=of gen]        (cd)    {Constrained \\ decoding};
+		\node[phase, right=of cd]         (out)   {Salida\\Pydantic};
+
+		% Fase 4 (evaluación / auditoría)
+		\node[phase, right=18mm of out]   (audit) {Auditoría \\ self-correct};
+
+		% Conexiones horizontales por fila
+		\draw[arr] (chunk) -- (emb);
+		\draw[arr] (emb)   -- (hnsw);
+
+		\draw[arr] (filt)  -- (ann);
+		\draw[arr] (ann)   -- (ce);
+
+		\draw[arr] (gen)   -- (cd);
+		\draw[arr] (cd)    -- (out);
+
+		% Conexiones inter-fase
+		\draw[arr] (hnsw.south) -- ++(0,-2mm) -| (filt.north);
+		\draw[arr] (ce.south)   -- ++(0,-2mm) -| (gen.north);
+		\draw[arr] (out)        -- (audit);
+		\draw[arr, dashed, accent]
+		(audit.south) -- ++(0,-3mm) -| node[pos=0.25,below,font=\scriptsize\itshape]{retro $\le 3$} (gen.south);
+
+		% Etiquetas de fase
+		\node[left=2mm of chunk, font=\scriptsize\bfseries, primary]
+		{Fase 1};
+		\node[left=2mm of filt,  font=\scriptsize\bfseries, primary]
+		{Fase 2--3};
+		\node[left=2mm of gen,   font=\scriptsize\bfseries, primary]
+		{Fase 4};
+		\node[left=2mm of audit, font=\scriptsize\bfseries, primary, xshift=-2mm, yshift=+2mm]
+		{Fase 5};
+
+	\end{tikzpicture}
+
+	\vspace{2mm}
+	\footnotesize
+	\textbf{1.} Construcción vectorial \quad
+	\textbf{2.} Retrieval (filtros + ANN) \quad
+	\textbf{3.} Reranking \quad
+	\textbf{4.} Generación restringida \quad
+	\textbf{5.} Auditoría / evaluación
+\end{frame}
+
+\begin{frame}[fragile]{Notación y datos del corpus}
+	\begin{columns}[T,onlytextwidth]
+		\column{0.55\textwidth}
+		\textbf{Corpus.} Reseñas TripAdvisor (RESTMEX) clasificadas por
+		tipo $\in\{\text{Hotel, Restaurant, Attractive}\}$.
+
+		\medskip
+		\textbf{Volumen indexado.}
+		\begin{itemize}
+			\item $N = 1{,}067{,}981$ chunks
+			\item $\sim 5.1$ GB en disco (ChromaDB persistente)
+			\item Dim. del embedding $d = 768$
+		\end{itemize}
+
+		\medskip
+		\textbf{Notación.}
+		\begin{itemize}
+			\item $\vq \in \R^d$: embedding de la consulta
+			\item $\vd_i \in \R^d$: embedding del chunk $i$
+			\item $\mathcal{F}$: filtro sobre metadatos
+			      (\texttt{town, type, polarity, year, $\dots$})
+			\item $\mathcal{D}_\mathcal{F} = \{\vd_i : m_i \models \mathcal{F}\}$
+		\end{itemize}
+
+		\column{0.45\textwidth}
+		\textbf{Metadatos por chunk}
+		\scriptsize
+		\begin{lstlisting}[style=py,language=Python]
+{
+  "town":     "Isla_Mujeres",
+  "type":     "Restaurant",
+  "polarity": 4,
+  "place":    "...",
+  "month":    7,
+  "year":     2023,
+  "source_id":  "...",
+  "chunk_index": 2,
+}
+\end{lstlisting}
+	\end{columns}
+\end{frame}
+
+% =============================================================
+\section{1. Construcción de la base vectorial}
+% =============================================================
+
+\subsection{1.1 Chunking}
+
+\begin{frame}{1.1 Chunking: intuición}
+	\textbf{¿Por qué fragmentar?}
+	\begin{itemize}
+		\item Los \emph{transformers} de embedding tienen ventana finita
+		      (típicamente $\le 512$ tokens). Documentos largos se
+		      \emph{truncarían}.
+		\item Un embedding por documento entero \textbf{promedia señales} de
+		      múltiples tópicos; el coseno entre $\vq$ y un vector que mezcla
+		      ``servicio + ubicación + ruido'' se diluye.
+		\item Granularidad más fina $\Rightarrow$ mejor \textbf{recall}
+		      semántico (cada queja, cada elogio, vive en un chunk propio).
+	\end{itemize}
+
+	\medskip
+	\textbf{Trade-off.} Chunks demasiado cortos pierden contexto
+	sintáctico; demasiado largos diluyen relevancia. Para reseñas (texto
+	corto y tópico-denso) se elige una ventana \emph{agresivamente
+		pequeña}.
+\end{frame}
+
+\begin{frame}[fragile]{1.1 Chunking: formulación y configuración}
+	\textbf{Splitter recursivo.} Sea $T$ el texto y
+	$S = (s_1, s_2, \dots, s_m)$ una jerarquía de separadores. El algoritmo
+	recursivo es:
+	\[
+		\mathrm{split}(T, S) =
+		\begin{cases}
+			\{T\}                                  & \text{si } |T| \le L \\[2pt]
+			\bigcup_j \mathrm{split}(T_j, S_{2:m}) & \text{si } |T| > L,\
+			T = T_1 \oplus s_1 \oplus T_2 \oplus \cdots
+		\end{cases}
+	\]
+	con \emph{merge} posterior que respeta longitud máxima $L$ y
+	solapamiento $o$.
+
+	\medskip
+	\textbf{Configuración del proyecto:}
+	\begin{itemize}
+		\item $L = 200$ caracteres, $o = 50$ (ratio $25\%$)
+		\item $S = (\texttt{"\textbackslash n\textbackslash n", "\textbackslash n", ". ", " ", ""})$
+		\item Implementación: \texttt{RecursiveCharacterTextSplitter}
+		      (LangChain)
+	\end{itemize}
+
+	\medskip
+	\textbf{Justificación.} Las reseñas RESTMEX rara vez superan 1–2
+	párrafos; $L=200$ atomiza al nivel de \emph{frase larga / micro-aspecto},
+	y el solape $o=50$ evita cortar entidades en frontera.
+\end{frame}
+
+\subsection{1.2 Embeddings: SBERT en español}
+
+\begin{frame}{1.2 SBERT: arquitectura bi-encoder}
+	\textbf{Modelo:} \texttt{hiiamsid/sentence\_similarity\_spanish\_es}.
+	Fine-tuning de \textbf{BETO} (BERT entrenado sobre corpus en español) con la receta \emph{Sentence-BERT}.
+
+	\medskip
+	\textbf{Función de embedding.}
+	Dado un texto $x$ con tokens $(t_1,\dots,t_n)$ y representaciones por
+	capa $\mathbf{H} \in \R^{n \times d}$ (con $d=768$), se aplica
+	\emph{mean pooling} con máscara de atención $\mathbf{a}\in\{0,1\}^n$:
+	\[
+		f(x) \;=\; \frac{\sum_{i=1}^{n} a_i\, \mathbf{H}_i}{\sum_{i=1}^{n} a_i}
+		\;\in\; \R^{768}.
+	\]
+
+	\textbf{Objetivo de entrenamiento.}
+	Para pares $(a,b)$ con etiqueta $y$ (similitud), se minimiza un
+	\emph{cosine MSE}:
+	\[
+		\mathcal{L}(a,b,y) \;=\; \bigl(\,\cos(f(a), f(b)) - y\,\bigr)^2,
+	\]
+	o, en variantes con triple, \emph{multiple negatives ranking}:
+	\[
+		\mathcal{L} \;=\; -\log
+		\frac{\exp(\cos(f(a),f(b^+))/\tau)}
+		{\sum_{b\in\mathcal{B}} \exp(\cos(f(a),f(b))/\tau)}.
+	\]
+\end{frame}
+
+\begin{frame}{1.2 ¿Por qué este modelo en este proyecto?}
+	\begin{itemize}
+		\item \textbf{Lengua nativa.} BETO se preentrenó sobre texto en
+		      español; el tokenizador maneja morfología
+		      (\emph{servicio/servicios}, \emph{atendieron}) sin la pérdida
+		      típica de modelos multilingües.
+
+		\item \textbf{Tarea alineada.} El head fue re-afinado con un objetivo
+		      de \emph{semantic textual similarity}, exactamente la métrica
+		      que usaremos en retrieval.
+
+		% \item \textbf{Geometría útil.} El espacio resultante satisface
+		%       anisotropía controlada: $\cos(f(x), f(y))$ correlaciona con
+		%       similitud humana, condición necesaria para que la métrica HNSW
+		%       sea informativa.
+
+		% \item \textbf{Tamaño práctico.} $d=768$ es suficiente para
+		%       discriminar tópicos turísticos sin inflar el índice ($N\cdot d
+		% 	      \cdot 4\,\text{B} \approx 3.1\,\text{GB}$ solo en vectores).
+	\end{itemize}
+
+	\medskip
+	\textbf{Normalización.} Se utiliza la convención
+	$\hat{\vd} = \vd / \|\vd\|_2$, de modo que
+	$\cos(\vq,\vd) = \hat{\vq}\T \hat{\vd}$ y la similitud coseno se reduce
+	a un producto punto.
+\end{frame}
+
+\subsection{1.3 Indexado HNSW}
+
+\begin{frame}{1.3 El problema: k-NN exacto es prohibitivo}
+	\textbf{k-NN exacto} para una consulta $\vq$:
+	\[
+		\mathcal{C}_K^{*} \;=\;
+		\argmax_{\substack{S \subseteq \mathcal{D} \\ |S|=K}}
+		\sum_{\vd \in S} \cos(\vq,\vd),
+		\qquad
+		\text{costo: } \mathcal{O}(N\cdot d).
+	\]
+
+	\textbf{Magnitud.} Con $N=1{,}067{,}981$ y $d=768$:
+	\[
+		N \cdot d \;\approx\; 8.2 \times 10^{8}\ \text{flops por consulta},
+	\]
+	incompatible con latencia interactiva en CPU/GPU comerciales.
+
+	\medskip
+	\textbf{Solución: ANN (Approximate Nearest Neighbors).}\\
+	Aceptamos un recall ligeramente $<1$ a cambio de complejidad esperada
+	sub-lineal. La familia \textbf{HNSW} (Malkov \& Yashunin, 2018) es el
+	estado del arte para coseno/euclidiana en dimensiones moderadas.
+\end{frame}
+
+\begin{frame}{1.3 HNSW}
+	\textbf{Idea.} Combinar dos estructuras:
+	\begin{itemize}
+		\item \textbf{Skip-lists} $\to$ jerarquía probabilística de capas
+		      con distintas densidades.
+		\item \textbf{Small-world graphs} (Kleinberg) $\to$ enlaces cortos
+		      (vecinos cercanos) + enlaces largos (saltos), garantizando
+		      diámetro logarítmico.
+	\end{itemize}
+
+	\medskip
+	\textbf{Asignación de capas.} A cada nodo $v$ se le asigna un nivel
+	máximo $\ell(v)$ con distribución geométrica truncada
+	\[
+		P(\ell = k) \;=\; (1-p)\,p^{k},
+		\qquad p = \frac{1}{\ln M},
+	\]
+	donde $M$ es el número objetivo de vecinos por nodo y por capa.
+	La esperanza es $\E[\ell] = p/(1-p) = 1/(\ln M - 1)$, produciendo
+	una pirámide con muy pocos nodos en capas altas.
+
+	\medskip
+	\textbf{Garantía estructural.} El grafo de la capa 0 contiene a
+	\emph{todos} los nodos; las capas superiores actúan como
+	\emph{índices gruesos}.
+\end{frame}
+
+\begin{frame}{1.3 HNSW --- algoritmo de búsqueda}
+	\textbf{Greedy descent multi-capa.} Sea $L_{\max}$ la capa más alta y
+	$\vq$ la consulta:
+	\begin{enumerate}
+		\item Iniciar en el punto de entrada $e \in V_{L_{\max}}$.
+		\item Para $\ell = L_{\max}, L_{\max}-1, \dots, 1$:
+		      avanzar greedy a
+		      \[
+			      e \leftarrow \argmin_{u \in \mathcal{N}_\ell(e)\cup\{e\}}
+			      \|\vq - \mathbf{u}\|,
+		      \]
+		      hasta convergencia local en la capa.
+		\item En la capa 0, ejecutar búsqueda con \emph{cola de prioridad de
+			      tamaño} \texttt{ef\_search}: mantener un conjunto candidato
+		      $\mathcal{C}$ y un conjunto resultado $\mathcal{W}$;
+		      expandir hasta que ningún candidato mejore al peor de
+		      $\mathcal{W}$.
+		\item Devolver los $K$ más cercanos en $\mathcal{W}$.
+	\end{enumerate}
+
+	\medskip
+	\textbf{Complejidad esperada.}
+	\[
+		\mathcal{O}\bigl(\log N\bigr)\ \text{pasos por consulta},
+	\]
+	con constante dominada por $M \cdot \texttt{ef\_search}$.
+\end{frame}
+
+\begin{frame}{1.3 Hiperparámetros del proyecto}
+	\begin{columns}[T]
+		\column{0.5\textwidth}
+		\textbf{\texttt{ef\_construction = 200}}
+		\begin{itemize}
+			\item Tamaño de la lista dinámica de candidatos al \emph{construir}
+			      el grafo.
+			\item Controla la calidad de las aristas: cuanto mayor, mejor
+			      conectividad y mejor recall asintótico.
+			\item Costo: tiempo de indexado escala $\sim$ lineal en
+			      \texttt{ef\_construction}.
+		\end{itemize}
+
+		\column{0.5\textwidth}
+		\textbf{\texttt{ef\_search = 200}}
+		\begin{itemize}
+			\item Análogo al anterior pero \emph{en consulta}.
+			\item Trade-off recall@$K$ vs latencia. Para HNSW de coseno,
+			      \texttt{ef\_search}$\approx 200$ alcanza típicamente
+			      \[
+				      \text{recall@10} \approx 0.95\text{--}0.98
+			      \]
+			      contra k-NN exacto, manteniendo latencias de pocos ms.
+		\end{itemize}
+	\end{columns}
+
+	\bigskip
+	\textbf{Métrica del espacio.} \texttt{space=``cosine''}:
+	\[
+		\text{sim}(\vq,\vd) = \frac{\vq\cdot\vd}{\|\vq\|\,\|\vd\|},
+		\qquad
+		d_{\cos}(\vq,\vd) = 1 - \text{sim}(\vq,\vd).
+	\]
+	Tras L2-normalización, $\|\vq\|=\|\vd\|=1$ y la búsqueda HNSW
+	reduce su núcleo computacional a productos punto $\vq\T\vd$,
+	vectorizables sobre SIMD.
+\end{frame}
+
+% =============================================================
+\section{2. Fase de Retrieval}
+% =============================================================
+
+\begin{frame}{2. Retrieval: formulación}
+	\textbf{Problema.} Dada una consulta $\vq$ y un filtrado de metadatos
+	$\mathcal{F}$, recuperar
+	\[
+		\mathcal{C}_K \;=\;
+		\argmax_{\substack{S \subseteq \mathcal{D}_{\mathcal{F}} \\ |S|=K}}
+		\sum_{\vd \in S} \cos(\vq,\vd),
+		\qquad
+		\mathcal{D}_{\mathcal{F}} \subseteq \mathcal{D}.
+	\]
+
+	\textbf{Pre-filtrado por metadatos.} ChromaDB compone una cláusula
+	\texttt{where} estructurada:
+	\begin{align*}
+		\mathcal{F} \;=\;\  & \bigl\{ \texttt{town} = \text{``Isla\_Mujeres''} \bigr\}\
+		\land                                                                                \\
+		                    & \bigl\{ \texttt{type} \in \{\text{Hotel, Restaurant}\}\bigr\}\
+		\land\ \cdots
+	\end{align*}
+	La estrategia es \textbf{pre-filtering}: se restringe el subgrafo HNSW
+	a $\mathcal{D}_{\mathcal{F}}$ \emph{antes} de la expansión greedy, en
+	contraste con \emph{post-filtering} (que descarta tras buscar y
+	sufre baja densidad efectiva si $\mathcal{F}$ es restrictivo).
+
+	\medskip
+	\textbf{Razón.} Las consultas siempre se anclan a un Pueblo Mágico
+	y un tipo de negocio; sin pre-filtering, el ANN devolvería resultados
+	fuera de dominio que el reranker tendría que descartar.
+\end{frame}
+
+\begin{frame}{2. Two-stage retrieval: recuperación y re-ranking}
+	\textbf{Estrategia.} En lugar de pedir al bi-encoder los $K$ finales,
+	se sobre-recupera un factor $\alpha = 3$:
+	\[
+		\mathcal{C}^{(1)} \;=\;
+		\text{top-}(\alpha K)_{\vd \in \mathcal{D}_{\mathcal{F}}}
+		\cos(\vq,\vd)
+		\quad\text{(bi-encoder, HNSW)}.
+	\]
+	Después, el cross-encoder reordena $\mathcal{C}^{(1)}$ y
+	\[
+		\mathcal{C}_K \;=\;
+		\text{top-}K_{\vd \in \mathcal{C}^{(1)}}
+		g(\vq, \vd).
+	\]
+
+	\textbf{¿Por qué $\alpha=3$?} Compromiso entre:
+	\begin{itemize}
+		\item \textbf{Recall.} El bi-encoder es rápido pero
+		      ruidoso. Con $\alpha=3$, la probabilidad de que los documentos relevantes estén
+		      en $\mathcal{C}^{(1)}$ aumenta notoriamente.
+		\item \textbf{Costo del reranker.} Cada par $(\vq,\vd)$ requiere un
+		      forward pass completo del cross-encoder; $\alpha=3$ mantiene la
+		      latencia del stage 2 acotada.
+	\end{itemize}
+
+	\medskip
+	\textbf{Idea clave.} Bi-encoder y cross-encoder son
+	\textbf{complementarios}: el primero filtra eficientemente,
+	el segundo discrimina con alta precisión sobre un conjunto pequeño.
+\end{frame}
+
+% =============================================================
+\section{3. Reranking con Cross-Encoder}
+% =============================================================
+
+\begin{frame}{3. Bi-encoder vs Cross-encoder}
+	\textbf{Bi-encoder} (\S 1.2).
+	\[
+		\text{score}(\vq,\vd) \;=\; \cos\bigl(f(\vq),\, f(\vd)\bigr),
+		\qquad
+		f:\Sigma^{*} \to \R^{768}.
+	\]
+	\emph{Dos forward passes independientes.} Cacheable: $f(\vd)$ se
+	calcula una sola vez en indexado.
+
+	\bigskip
+	\textbf{Cross-encoder.}
+	\[
+		\text{score}(\vq,\vd) \;=\;
+		g\bigl([\,\vq;\, \texttt{[SEP]};\, \vd\,]\bigr),
+		\qquad
+		g:\Sigma^{*} \to \R.
+	\]
+	\emph{Un único forward pass} sobre la concatenación. La auto-atención
+	ve \emph{todos los tokens de $\vq$ y $\vd$ simultáneamente}, así puede
+	modelar interacciones token-a-token:
+	\[
+		\alpha_{ij} \;=\;
+		\softmax_{j}\!\left(
+		\frac{\mathbf{q}_i\T \mathbf{k}_j}{\sqrt{d_k}}
+		\right),
+		\qquad
+		i \in \vq,\ j \in \vd.
+	\]
+
+	\textbf{Trade-off.} El cross-encoder es estrictamente más
+	\emph{expresivo} pero no cacheable: requiere $|\mathcal{C}^{(1)}|$
+	forwards \emph{en línea}.
+\end{frame}
+
+\begin{frame}{3. Modelo: \texttt{mmarco-mMiniLMv2-L12-H384-v1}}
+	\textbf{Arquitectura.}
+	\begin{itemize}
+		\item 12 capas de transformer, hidden size $384$.
+		\item Destilado de modelos MiniLM.
+	\end{itemize}
+
+	\textbf{Entrenamiento (mMARCO multilingüe).}
+	\begin{itemize}
+		\item Corpus: traducción multilingüe del MS MARCO Passage Ranking
+		      (consulta $\to$ pasaje).
+		\item Objetivo \textbf{point-wise}: regresión de relevancia
+		      $y\in\{0,1\}$ con \emph{binary cross-entropy} sobre el logit:
+		      \[
+			      \mathcal{L}(\vq,\vd,y) =
+			      -\,y \log \sigma(g(\vq,\vd))
+			      -\,(1-y)\log\bigl(1-\sigma(g(\vq,\vd))\bigr).
+		      \]
+	\end{itemize}
+
+	\textbf{Idoneidad.} Multilingüe $\Rightarrow$ generaliza al español
+	sin re-entrenamiento; tamaño moderado $\Rightarrow$
+	inferencia $< 50$ ms por par en GPU de consumidor.
+\end{frame}
+
+% =============================================================
+\section{4. Generación de texto restringida}
+% =============================================================
+
+\begin{frame}{4. Generación: el problema de la salida estructurada}
+	\textbf{Modelo generador.}
+	\[
+		\texttt{groq/openai/gpt-oss-120b},\qquad
+		\tau = 0\ \text{(decodificación greedy)}.
+	\]
+	Greedy ($\tau=0$) elimina varianza estocástica:
+	\[
+		y_t \;=\; \argmax_{v \in \mathcal{V}}\,
+		p_\theta\bigl(v \mid y_{<t}, \vq, \mathcal{C}_K\bigr).
+	\]
+
+	\textbf{Reto.} Las fases posteriores del workflow (LangGraph) consumen
+	\emph{objetos tipados}: \texttt{ConsolidatedReport},
+	\texttt{Scorecard}, \texttt{RoadmapActions}. Un parser que
+	``espera JSON'' falla con cualquier desviación: comas finales,
+	campos extra, comillas mal colocadas, etc.
+
+	\medskip
+	\textbf{Solución: constrained decoding.} En cada paso $t$ se
+	\textbf{restringe el soporte} de $p_\theta$ a un subconjunto
+	$\mathcal{V}_t \subseteq \mathcal{V}$ permitido por la gramática:
+	\[
+		\tilde p_\theta(v\mid \cdot) \;\propto\;
+		p_\theta(v\mid \cdot)\cdot \mathbf{1}\left[v \in \mathcal{V}_t\right].
+	\]
+\end{frame}
+
+\begin{frame}{4. Máscara de logits}
+	\textbf{Decodificación enmascarada.} Sea $\Pi_t \subseteq V$ el
+	conjunto de \emph{prefijos válidos} en el paso $t$. La máscara es
+	\[
+		m_t(v) =
+		\begin{cases}
+			0       & \text{si } y_{<t}\!\cdot\!v \text{ extiende un prefijo válido} \\
+			-\infty & \text{en otro caso.}
+		\end{cases}
+	\]
+	La distribución efectiva queda
+	\[
+		\tilde p_\theta(v \mid \cdot) =
+		\softmax\bigl(\,\ell_t(v) + m_t(v)\,\bigr),
+	\]
+	donde $\ell_t \in \R^{|\mathcal{V}|}$ son los logits del modelo.
+	Los tokens prohibidos reciben $-\infty$ y su probabilidad colapsa
+	a cero \emph{antes} del softmax.
+
+	\textbf{Garantía.} validar el JSON post-hoc nunca falla.
+\end{frame}
+
+\begin{frame}[fragile]{4. Implementación con Pydantic}
+	\textbf{Esquema declarativo (Ejemplo).}
+	\begin{lstlisting}[style=py]
+class PillarScore(BaseModel):
+    score: int = Field(..., ge=1, le=10)
+    justification: str
+
+class Scorecard(BaseModel):
+    infraestructura: PillarScore
+    servicios:       PillarScore
+    atractivos:      PillarScore
+
+class ConsolidatedReport(BaseModel):
+    executive_summary: str
+    scorecard:         Scorecard
+    diagnostico_brechas: list[str]
+    hoja_de_ruta:      RoadmapActions
+    oportunidades_transversales: list[str]
+\end{lstlisting}
+\end{frame}
+
+\begin{frame}{4. Constrained Decoding: por qué importa en este pipeline}
+
+	Sin constrained decoding:
+	\begin{itemize}
+		\item Cada nodo del grafo necesitaría reintentos, parsers tolerantes,
+		      y heurísticas de reparación.
+		\item La rama de auditoría no podría confiar en las salidas del LLM (¿es \texttt{score} entero o string?, ¿la lista existe?).
+	\end{itemize}
+
+	Con constrained decoding:
+	\begin{itemize}
+		\item Garantía sintáctica $+$ validación semántica vía Pydantic.
+		\item El grafo obtiene salidas correctamente estructuradas de extremo a extremo.
+	\end{itemize}
+\end{frame}
+
+% =============================================================
+\section{5. Evaluación y bucle de auditoría}
+% =============================================================
+
+\begin{frame}{5. Auditoría auto-correctiva}
+	\textbf{Riesgo.} Aun con retrieval perfecto, un LLM puede
+	\emph{confabular} cifras o atribuir afirmaciones a evidencia que no las
+	respalda. El reporte final tiene impacto en decisiones de inversión
+	pública: la evaluación es parte del pipeline.
+
+	\medskip
+	\textbf{Bucle de auto-corrección} ($\le 3$ iteraciones):
+	\begin{enumerate}
+		\item Ejecutar \emph{Map} y \emph{Reduce} $\to$
+		      \texttt{Reporte Consolidado}$^{(t)}$.
+		\item Nodo \emph{Auditor}: el LLM recibe el reporte y una muestra de
+		      las reseñas originales recuperadas, y emite su resultado de auditoría:
+		      \[
+			      \texttt{Resultado de Auditoría} =
+			      \bigl(\text{es\_respaldado} \in \{0,1\},\
+			      \text{problemas}: \text{list[str]}\bigr).
+		      \]
+		\item Si $\text{es\_respaldado}=0$ y $t<3$: re-generar con los
+		      \emph{problemas} como contexto adicional ($t \leftarrow t+1$).
+		      En otro caso, terminar.
+	\end{enumerate}
+
+	\textbf{Convergencia empírica.} Con greedy ($\tau=0$) y feedback
+	estructurado, la mayoría de pueblos auditados convergen en
+	$t\le 2$ iteraciones.
+\end{frame}
+
+% =============================================================
+\section{Cierre}
+% =============================================================
+
+\begin{frame}{Síntesis del diseño}
+	\begin{table}[h]
+		\centering
+		\scriptsize
+		\begin{tabular}{@{}lll@{}}
+			\toprule
+			\textbf{Fase} & \textbf{Decisión}                   & \textbf{Justificación}                        \\ \midrule
+			Chunking      & $L=200$, $o=50$                     & granularidad de aspecto, sin cortar entidades \\
+			Embedding     & SBERT-es, $d=768$                   & lengua nativa + objetivo STS alineado         \\
+			Index         & HNSW coseno, $\texttt{ef}=200$      & $\mathcal{O}(\log N)$, recall$\approx 0.95$   \\
+			Retrieval     & pre-filter $+$ overfetch $\alpha=3$ & dominio acotado $+$ pool denso                \\
+			Rerank        & cross-encoder mMiniLM-L12           & precisión token-a-token, multilingüe          \\
+			Gen.          & gpt-oss-120b, $\tau=0$              & determinismo y reproducibilidad               \\
+			Output        & Pydantic $\to$ JSON Schema          & garantía sintáctica vía CFG masking           \\
+			Eval.         & auditor $\le 3$ iter.               & \emph{groundedness} antes de publicar         \\
+			\bottomrule
+		\end{tabular}
+	\end{table}
+\end{frame}
+
+\begin{frame}[standout]
+	Preguntas
+\end{frame}
+
+\end{document}

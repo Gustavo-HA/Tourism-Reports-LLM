@@ -12,16 +12,18 @@
 \usepackage{mathtools}
 \usepackage{booktabs}
 \usepackage{tikz}
-\usepackage{xcolor}
+\usepackage[table]{xcolor}
 \usepackage{listings}
 \usepackage{hyperref}
 \usetikzlibrary{arrows.meta,positioning,shapes.geometric,fit,backgrounds,calc}
 
 % --- Colores ---
-\definecolor{primary}{HTML}{1F4E79}
-\definecolor{accent}{HTML}{C0504D}
+\definecolor{cimatred}{HTML}{12393D}
+\definecolor{primary}{HTML}{12393D}
+\definecolor{accent}{HTML}{64293E}
 \definecolor{soft}{HTML}{EAF1F8}
 \definecolor{good}{HTML}{2E7D32}
+
 
 % --- Listings (Python / JSON) ---
 \lstdefinestyle{py}{
@@ -47,12 +49,21 @@
 \DeclareMathOperator{\softmax}{softmax}
 \DeclareMathOperator{\sgn}{sgn}
 
-% --- Metadatos ---a
-\title{Pipeline RAG para Inteligencia Turística}
-\subtitle{Metodología técnica \\
-\small{Reseñas RESTMEX de Pueblos Mágicos}}
+% --- TOC: secciones con círculo numerado ---
+\setbeamertemplate{section in toc}{%
+  \leavevmode%
+  \tikz[baseline=-0.65ex]
+    \node[circle, fill=accent, text=white,
+          inner sep=2pt, font=\bfseries\scriptsize]
+      {\inserttocsectionnumber};%
+  \hspace{6pt}\inserttocsection\par%
+}
+
+% --- Metadatos ---
+\title{Generación de Reportes Sintéticos sobre Pueblos Mágicos usando RAG}
+\subtitle{Laboratorio ATLAS}
 \author{Gustavo Hernández Angeles}
-\date{\today}
+\date{12 de mayo de 2026}
 
 \begin{document}
 
@@ -61,7 +72,126 @@
 % =============================================================
 
 \begin{frame}{Agenda}
-	\tableofcontents
+	\begin{columns}[t]
+		\column{0.48\textwidth}
+		\tableofcontents[sections={1-5},hideallsubsections]
+		\column{0.48\textwidth}
+		\tableofcontents[sections={6-10},hideallsubsections]
+	\end{columns}
+\end{frame}
+
+% =============================================================
+\section{Introducción}
+% =============================================================
+
+\begin{frame}{Introducción}
+	El programa ``Pueblos Mágicos'' de México busca revalorizar localidades con atributos
+	simbólicos e históricos, fomentando el turismo como motor de desarrollo económico local.
+
+	\medskip
+	\begin{columns}[T,onlytextwidth]
+		\column{0.52\textwidth}
+		La retroalimentación de los turistas es crucial para evaluar la efectividad y calidad
+		de la experiencia ofrecida. Actualmente, el análisis de grandes volúmenes de opiniones
+		(reseñas, comentarios en redes sociales) suele ser un proceso manual y lento.
+		Este proyecto propone una solución automatizada para sintetizar y reportar estos datos
+		de opinión.
+
+		\column{0.46\textwidth}
+		\centering
+		\includegraphics[width=\textwidth]{figures/mexico.png}
+	\end{columns}
+\end{frame}
+
+% =============================================================
+\section{Planteamiento del Problema}
+% =============================================================
+
+\begin{frame}{Planteamiento del Problema}
+	La gran cantidad de datos generados por los turistas en plataformas digitales constituye un
+	recurso con potencial para la toma de decisiones en el sector turístico de los Pueblos Mágicos.
+
+	\medskip
+	\begin{itemize}
+		\item El desafío radica en cómo transformar este \emph{big data} textual en reportes
+		      concisos, coherentes y accionables de manera eficiente y escalable.
+	\end{itemize}
+
+	\bigskip
+	\centering
+	\begin{tikzpicture}[font=\normalsize, node distance=18mm]
+		\node[draw=gray!50, fill=gray!10, rounded corners=4pt,
+			minimum width=28mm, minimum height=20mm, align=center] (docs)
+		{\footnotesize Reseñas\\\footnotesize masivas};
+		\node[draw=accent, fill=accent!12, rounded corners=4pt,
+			minimum width=28mm, minimum height=20mm, align=center,
+			right=32mm of docs] (report)
+		{\footnotesize Reporte\\\footnotesize accionable};
+		\draw[-{Stealth[length=4mm]}, very thick, accent, line width=3pt]
+		(docs) -- (report);
+		\node[above=3mm, font=\scriptsize\itshape\color{accent}]
+		at ($(docs)!0.5!(report)$) {LLM + RAG};
+	\end{tikzpicture}
+\end{frame}
+
+% =============================================================
+\section{Objetivos}
+% =============================================================
+
+\begin{frame}{Objetivos}
+	\textbf{Objetivo General}\\[4pt]
+	Desarrollar un sistema basado en modelos grandes de lenguaje (LLM) para generar
+	automáticamente reportes sintéticos de alta calidad sobre la percepción y la experiencia
+	del turista en Pueblos Mágicos de México, a partir de colecciones masivas de reseñas.
+
+	\bigskip
+	\textbf{Objetivos Específicos}
+	\begin{itemize}
+		\item Diseñar y construir una base de conocimiento para el LLM a partir del conjunto
+		      de datos.
+		\item Implementar un flujo de trabajo para la generación de reportes que utilice la
+		      base de conocimiento, además de guiar al LLM en la estructuración y síntesis
+		      del contenido.
+		\item Evaluar la calidad, coherencia y factualidad de los reportes sintéticos generados.
+	\end{itemize}
+\end{frame}
+
+% =============================================================
+\section{Conjunto de Datos}
+% =============================================================
+
+\begin{frame}{Conjunto de Datos}
+	\textbf{Descripción.} El conjunto de datos consta de \textbf{+300\,000} reseñas de turistas
+	sobre negocios / atracciones ubicados en los Pueblos Mágicos de México.
+	Cada registro cuenta con:
+
+	\begin{itemize}
+		\item Título y cuerpo de la reseña.
+		\item Nombre del negocio.
+		\item Tipo de Negocio (Hotel, Restaurante, Atracción).
+		\item Pueblo Mágico.
+		\item Calificación.
+	\end{itemize}
+
+	\medskip
+	\begin{table}[h]
+		\centering
+		\scriptsize
+		\setlength{\tabcolsep}{5pt}
+		\renewcommand{\arraystretch}{1.3}
+		\begin{tabular}{|p{0.36\textwidth}|p{0.17\textwidth}|p{0.17\textwidth}|p{0.12\textwidth}|}
+			\hline
+			\rowcolor{accent!80}
+			\color{white}\textbf{Titulo y Reseña}         &
+			\color{white}\textbf{Tipo de Negocio}         &
+			\color{white}\textbf{Pueblo Mágico}           &
+			\color{white}\textbf{Calificación}                                             \\
+			\hline
+			Relax \%100: Playa limpia buenos servicios\ldots\ nos deja mal sabor de boca
+			fue el hotel por su falta de compromiso\ldots & Atracción & Isla Mujeres & 5/5 \\
+			\hline
+		\end{tabular}
+	\end{table}
 \end{frame}
 
 % =============================================================

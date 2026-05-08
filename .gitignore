@@ -223,4 +223,5 @@ __marimo__/
 *.snm
 *.toc
 *.vrb
+*.synctex.gz
 /reports

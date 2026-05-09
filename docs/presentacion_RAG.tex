@@ -84,18 +84,20 @@
 \section{Introducción}
 % =============================================================
 
-\begin{frame}{Introducción}
-	El programa ``Pueblos Mágicos'' de México busca revalorizar localidades con atributos
-	simbólicos e históricos, fomentando el turismo como motor de desarrollo económico local.
+\begin{frame}{Antecedentes \(\cdot\) Pueblos Mágicos}
+	El programa \textbf{Pueblos Mágicos} (SECTUR, 2001) reconoce hoy a más de 170
+	localidades mexicanas con valor simbólico, histórico o natural. Su propósito es
+	\emph{revalorizar el patrimonio} y consolidar al turismo como motor de
+	desarrollo económico regional.
 
 	\medskip
 	\begin{columns}[T,onlytextwidth]
 		\column{0.52\textwidth}
-		La retroalimentación de los turistas es crucial para evaluar la efectividad y calidad
-		de la experiencia ofrecida. Actualmente, el análisis de grandes volúmenes de opiniones
-		(reseñas, comentarios en redes sociales) suele ser un proceso manual y lento.
-		Este proyecto propone una solución automatizada para sintetizar y reportar estos datos
-		de opinión.
+		Una parte sustancial de la experiencia turística se documenta en línea:
+		reseñas en \textbf{TripAdvisor, Google Maps o Booking} forman una
+		\emph{voz del turista} densa, abundante y textualmente ruidosa.
+		Es retroalimentación nativa del visitante, pero su escala
+		hace inviable el análisis manual sistemático.
 
 		\column{0.46\textwidth}
 		\centering
@@ -103,35 +105,82 @@
 	\end{columns}
 \end{frame}
 
-% =============================================================
-\section{Planteamiento del Problema}
-% =============================================================
-
-\begin{frame}{Planteamiento del Problema}
-	La gran cantidad de datos generados por los turistas en plataformas digitales constituye un
-	recurso con potencial para la toma de decisiones en el sector turístico de los Pueblos Mágicos.
-
-	\medskip
-	\begin{itemize}
-		\item El desafío radica en cómo transformar este \emph{big data} textual en reportes
-		      concisos, coherentes y accionables de manera eficiente y escalable.
+\begin{frame}{Antecedentes \(\cdot\) Estado del arte}
+	\textbf{Análisis automatizado de reseñas turísticas}
+	\begin{itemize}\setlength\itemsep{2pt}
+		\item Análisis de sentimiento y clasificación de polaridad sobre reseñas
+		      con modelos tipo BERT/RoBERTa.
+		\item \emph{Modelado de Tópicos} (LDA, BERTopic) y análisis basado en aspectos
+		      para identificar atributos recurrentes de la experiencia:
+		      limpieza, precio, atención, seguridad.
 	\end{itemize}
 
-	\bigskip
-	\centering
-	\begin{tikzpicture}[font=\normalsize, node distance=18mm]
-		\node[draw=gray!50, fill=gray!10, rounded corners=4pt,
-			minimum width=28mm, minimum height=20mm, align=center] (docs)
-		{\footnotesize Reseñas\\\footnotesize masivas};
-		\node[draw=accent, fill=accent!12, rounded corners=4pt,
-			minimum width=28mm, minimum height=20mm, align=center,
-			right=32mm of docs] (report)
-		{\footnotesize Reporte\\\footnotesize accionable};
-		\draw[-{Stealth[length=4mm]}, very thick, accent, line width=3pt]
-		(docs) -- (report);
-		\node[above=3mm, font=\scriptsize\itshape\color{accent}]
-		at ($(docs)!0.5!(report)$) {LLM + RAG};
-	\end{tikzpicture}
+	\medskip
+	\textbf{Generación Aumentada por Recuperación (RAG)}
+	\begin{itemize}\setlength\itemsep{2pt}
+		\item Lewis \emph{et al.} (2020) introducen RAG: un LLM generador anclado
+		      a evidencia externa mediante recuperación densa.
+		\item Avances posteriores: \emph{reranking} con cross-encoders,
+		      decodificación restringida y bucles de auto-corrección
+		      (\emph{self-RAG}) que reducen alucinaciones.
+		\item Salidas \textbf{estructuradas} (JSON-schema, Pydantic) permiten
+		      integrar al LLM en flujos analíticos auditables y reproducibles.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Planteamiento del Problema}
+	\textbf{Problema.}
+	Cada Pueblo Mágico genera \textbf{miles de reseñas anuales}, dispersas en
+	múltiples plataformas, polaridades y categorías de negocio. Las autoridades
+	turísticas requieren convertir ese \emph{big data} textual en
+	\textbf{reportes estratégicos accionables}, pero hoy el proceso es
+	manual, lento y difícil de escalar a más de 170 destinos.
+
+	\medskip
+	\begin{itemize}\setlength\itemsep{3pt}
+		\item ¿Cómo \textbf{sintetizar} cientos de miles de opiniones sin perder
+		      evidencia ni introducir alucinaciones del LLM?
+		\item ¿Cómo separar la \textbf{atribución pública} (infraestructura,
+		      señalética, servicios básicos, seguridad) de la
+		      \textbf{atribución privada} (gestión y calidad del servicio)?
+		\item ¿Cómo entregar un diagnóstico
+		      \textbf{auditable, reproducible y trazable} a la reseña fuente?
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Planteamiento del Problema \(\cdot\) Relevancia}
+	\begin{columns}[T,onlytextwidth]
+		\column{0.55\textwidth}
+		\textbf{¿Por qué importa?}
+		\begin{itemize}\setlength\itemsep{3pt}
+			\item El turismo representa cerca del \textbf{8.5\,\% del PIB
+				      mexicano}; los Pueblos Mágicos concentran un flujo
+			      creciente de visitantes nacionales e internacionales.
+			\item Las decisiones de \textbf{inversión pública} (accesos,
+			      señalética, seguridad) compiten con la mejora de la
+			      \textbf{oferta privada} (capacitación, hotelería,
+			      gastronomía); priorizar mal es costoso.
+			\item La voz del turista ya contiene la \emph{señal} para priorizar;
+			      el cuello de botella es el \textbf{costo de análisis}, no
+			      la disponibilidad de datos.
+		\end{itemize}
+
+		\column{0.42\textwidth}
+		\centering
+		\begin{tikzpicture}[font=\footnotesize, node distance=14mm]
+			\node[draw=gray!50, fill=gray!10, rounded corners=4pt,
+				minimum width=26mm, minimum height=18mm, align=center] (docs)
+			{Reseñas\\masivas};
+			\node[draw=accent, fill=accent!12, rounded corners=4pt,
+				minimum width=26mm, minimum height=18mm, align=center,
+				right=20mm of docs] (report)
+			{Reporte\\accionable};
+			\draw[-{Stealth[length=4mm]}, very thick, accent, line width=3pt]
+			(docs) -- (report);
+			\node[above=2mm, font=\scriptsize\itshape\color{accent}]
+			at ($(docs)!0.5!(report)$) {LLM + RAG};
+		\end{tikzpicture}
+	\end{columns}
 \end{frame}
 
 % =============================================================

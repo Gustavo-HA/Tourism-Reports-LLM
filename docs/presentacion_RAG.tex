@@ -94,8 +94,7 @@
 	\begin{columns}[T,onlytextwidth]
 		\column{0.52\textwidth}
 		Una parte sustancial de la experiencia turística se documenta en línea:
-		reseñas en \textbf{TripAdvisor, Google Maps o Booking} forman una
-		\emph{voz del turista} densa, abundante y textualmente ruidosa.
+		reseñas en \textbf{TripAdvisor, Google Maps o Booking}.
 		Es retroalimentación nativa del visitante, pero su escala
 		hace inviable el análisis manual sistemático.
 
@@ -130,10 +129,9 @@
 
 \begin{frame}{Planteamiento del Problema}
 	\textbf{Problema.}
-	Cada Pueblo Mágico genera \textbf{miles de reseñas anuales}, dispersas en
+	Cada Pueblo Mágico genera miles de reseñas anuales, dispersas en
 	múltiples plataformas, polaridades y categorías de negocio. Las autoridades
-	turísticas requieren convertir ese \emph{big data} textual en
-	\textbf{reportes estratégicos accionables}, pero hoy el proceso es
+	turísticas requieren convertir ese \emph{big data} textual en reportes estratégicos accionables, pero hoy el proceso es
 	manual, lento y difícil de escalar a más de 170 destinos.
 
 	\medskip
@@ -141,7 +139,7 @@
 		\item ¿Cómo \textbf{sintetizar} cientos de miles de opiniones sin perder
 		      evidencia ni introducir alucinaciones del LLM?
 		\item ¿Cómo separar la \textbf{atribución pública} (infraestructura,
-		      señalética, servicios básicos, seguridad) de la
+		      señalización, servicios básicos, seguridad) de la
 		      \textbf{atribución privada} (gestión y calidad del servicio)?
 		\item ¿Cómo entregar un diagnóstico
 		      \textbf{auditable, reproducible y trazable} a la reseña fuente?
@@ -160,24 +158,23 @@
 			      señalética, seguridad) compiten con la mejora de la
 			      \textbf{oferta privada} (capacitación, hotelería,
 			      gastronomía); priorizar mal es costoso.
-			\item La voz del turista ya contiene la \emph{señal} para priorizar;
-			      el cuello de botella es el \textbf{costo de análisis}, no
-			      la disponibilidad de datos.
+			\item La opinión de los turistas ya contiene una señal para priorizar;
+			      el cuello de botella es el costo de análisis.
 		\end{itemize}
 
 		\column{0.42\textwidth}
 		\centering
 		\begin{tikzpicture}[font=\footnotesize, node distance=14mm]
 			\node[draw=gray!50, fill=gray!10, rounded corners=4pt,
-				minimum width=26mm, minimum height=18mm, align=center] (docs)
+				minimum width=30mm, minimum height=16mm, align=center] (docs)
 			{Reseñas\\masivas};
 			\node[draw=accent, fill=accent!12, rounded corners=4pt,
-				minimum width=26mm, minimum height=18mm, align=center,
-				right=20mm of docs] (report)
+				minimum width=30mm, minimum height=16mm, align=center,
+				below=18mm of docs] (report)
 			{Reporte\\accionable};
 			\draw[-{Stealth[length=4mm]}, very thick, accent, line width=3pt]
 			(docs) -- (report);
-			\node[above=2mm, font=\scriptsize\itshape\color{accent}]
+			\node[right=2mm, font=\scriptsize\itshape\color{accent}]
 			at ($(docs)!0.5!(report)$) {LLM + RAG};
 		\end{tikzpicture}
 	\end{columns}
@@ -244,7 +241,7 @@
 \end{frame}
 
 % =============================================================
-\section{0. Visión global del pipeline}
+\section{Marco Teórico}
 % =============================================================
 
 \begin{frame}{Pipeline general (cinco fases)}
@@ -314,7 +311,7 @@
 	\textbf{1.} Construcción vectorial \quad
 	\textbf{2.} Retrieval (filtros + ANN) \quad
 	\textbf{3.} Reranking \quad
-	\textbf{4.} Generación restringida \quad
+	\textbf{4.} Generación restringida \\
 	\textbf{5.} Auditoría / evaluación
 \end{frame}
 
@@ -361,10 +358,10 @@
 \end{frame}
 
 % =============================================================
-\section{1. Construcción de la base vectorial}
+% CONSTRUCCION DE LA BASE VECTORIAL
 % =============================================================
 
-\subsection{1.1 Chunking}
+\subsection{1. Construcción de la base vectorial}
 
 \begin{frame}{1.1 Chunking: intuición}
 	\textbf{¿Por qué fragmentar?}

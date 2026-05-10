@@ -130,7 +130,7 @@
 \begin{frame}{Planteamiento del Problema}
 	\textbf{Problema.}
 	Cada Pueblo Mágico genera miles de reseñas anuales, dispersas en
-	múltiples plataformas, polaridades y categorías de negocio. Las autoridades
+	múltiples polaridades y categorías de negocio. Las autoridades
 	turísticas requieren convertir ese \emph{big data} textual en reportes estratégicos accionables, pero hoy el proceso es
 	manual, lento y difícil de escalar a más de 170 destinos.
 
@@ -174,32 +174,8 @@
 			{Reporte\\accionable};
 			\draw[-{Stealth[length=4mm]}, very thick, accent, line width=3pt]
 			(docs) -- (report);
-			\node[right=2mm, font=\scriptsize\itshape\color{accent}]
-			at ($(docs)!0.5!(report)$) {LLM + RAG};
 		\end{tikzpicture}
 	\end{columns}
-\end{frame}
-
-% =============================================================
-\section{Objetivos}
-% =============================================================
-
-\begin{frame}{Objetivos}
-	\textbf{Objetivo General}\\[4pt]
-	Desarrollar un sistema basado en modelos grandes de lenguaje (LLM) para generar
-	automáticamente reportes sintéticos de alta calidad sobre la percepción y la experiencia
-	del turista en Pueblos Mágicos de México, a partir de colecciones masivas de reseñas.
-
-	\bigskip
-	\textbf{Objetivos Específicos}
-	\begin{itemize}
-		\item Diseñar y construir una base de conocimiento para el LLM a partir del conjunto
-		      de datos.
-		\item Implementar un flujo de trabajo para la generación de reportes que utilice la
-		      base de conocimiento, además de guiar al LLM en la estructuración y síntesis
-		      del contenido.
-		\item Evaluar la calidad, coherencia y factualidad de los reportes sintéticos generados.
-	\end{itemize}
 \end{frame}
 
 % =============================================================
@@ -241,8 +217,76 @@
 \end{frame}
 
 % =============================================================
+\section{Objetivos}
+% =============================================================
+
+\begin{frame}{Objetivos}
+	\textbf{Objetivo General}\\[4pt]
+	Desarrollar un sistema basado en modelos grandes de lenguaje (LLM) para generar
+	automáticamente reportes sintéticos de alta calidad sobre la percepción y la experiencia
+	del turista en Pueblos Mágicos de México, a partir de colecciones masivas de reseñas.
+
+	\bigskip
+	\textbf{Objetivos Específicos}
+	\begin{itemize}
+		\item Diseñar y construir una base de conocimiento para el LLM a partir del conjunto
+		      de datos.
+		\item Implementar un flujo de trabajo para la generación de reportes que utilice la
+		      base de conocimiento, además de guiar al LLM en la estructuración y síntesis
+		      del contenido.
+		\item Evaluar la calidad, coherencia y factualidad de los reportes sintéticos generados.
+	\end{itemize}
+\end{frame}
+
+% =============================================================
 \section{Marco Teórico}
 % =============================================================
+
+\begin{frame}{RAG: Generación aumentada por recuperación}
+	\textbf{Conocimiento limitado de los LLMs.}
+	\begin{itemize}
+		\item Un LLM aprende de un corpus general; su \textbf{memoria paramétrica}
+		      cubre mal dominios especializados y hechos locales.
+		\item Ante vacíos de información, tiende a \textbf{alucinar}: produce
+		      texto plausible pero falso, sin marcar la incertidumbre.
+		\item \emph{Ejemplo.} Preguntar ``¿qué problemas reportan los turistas
+		      en Santiago, N.L.?'' El modelo no vio reseñas turísticas de
+		      ese Pueblo Mágico durante el entrenamiento, así que es muy
+		      probable que \textbf{invente} quejas y atribuciones.
+	\end{itemize}
+
+	\medskip
+	\textbf{Idea principal.} En lugar de confiar en lo que el modelo
+	``recuerda'', \textbf{recuperamos} evidencia relevante (reseñas reales,
+	filtradas por pueblo y tipo de negocio) y se la entregamos como
+	contexto. La generación queda \textbf{anclada a documentos verificables}
+	en vez de a memoria difusa.
+\end{frame}
+
+\begin{frame}{¿Por qué salida estructurada? Intuición}
+	\textbf{El LLM no es el producto final.} Es \emph{un nodo} dentro de un
+	grafo (LangGraph) que consume y produce datos tipados:
+	\texttt{ConsolidatedReport}, \texttt{Scorecard}, \texttt{RoadmapActions}.
+	Texto libre rompe el pipeline.
+
+	\medskip
+	\textbf{Por qué imponemos un esquema fijo.}
+	\begin{itemize}
+		\item \textbf{Reproducibilidad}: misma entrada $\Rightarrow$ misma
+		      forma de salida, comparable entre corridas y entre pueblos.
+		\item \textbf{Alineación}: cada campo codifica una decisión editorial
+		      (qué reportar, con qué granularidad, qué taxonomía usar).
+		\item \textbf{Validación automática}: rangos
+		      (\texttt{score}\,$\in[1,10]$), tipos, listas no vacías — sin
+		      parsers tolerantes ni heurísticas de reparación.
+		\item \textbf{Composabilidad}: la rama de auditoría y el chat consumen
+		      los mismos objetos sin volver a parsear.
+	\end{itemize}
+
+	\smallskip
+	{\footnotesize El \emph{cómo} (constrained decoding + Pydantic) se
+		detalla en la sección 4.}
+\end{frame}
 
 \begin{frame}{Pipeline general (cinco fases)}
 	\centering

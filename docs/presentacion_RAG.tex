@@ -84,7 +84,7 @@
 \section{Introducción}
 % =============================================================
 
-\begin{frame}{Antecedentes \(\cdot\) Pueblos Mágicos}
+\begin{frame}{Pueblos Mágicos}
 	El programa \textbf{Pueblos Mágicos} (SECTUR, 2001) reconoce hoy a más de 170
 	localidades mexicanas con valor simbólico, histórico o natural. Su propósito es
 	\emph{revalorizar el patrimonio} y consolidar al turismo como motor de
@@ -179,45 +179,7 @@
 \end{frame}
 
 % =============================================================
-\section{Conjunto de Datos}
-% =============================================================
-
-\begin{frame}{Conjunto de Datos}
-	\textbf{Descripción.} El conjunto de datos consta de \textbf{+300\,000} reseñas de turistas
-	sobre negocios / atracciones ubicados en los Pueblos Mágicos de México.
-	Cada registro cuenta con:
-
-	\begin{itemize}
-		\item Título y cuerpo de la reseña.
-		\item Nombre del negocio.
-		\item Tipo de Negocio (Hotel, Restaurante, Atracción).
-		\item Pueblo Mágico.
-		\item Calificación.
-	\end{itemize}
-
-	\medskip
-	\begin{table}[h]
-		\centering
-		\scriptsize
-		\setlength{\tabcolsep}{5pt}
-		\renewcommand{\arraystretch}{1.3}
-		\begin{tabular}{|p{0.36\textwidth}|p{0.17\textwidth}|p{0.17\textwidth}|p{0.12\textwidth}|}
-			\hline
-			\rowcolor{accent!80}
-			\color{white}\textbf{Titulo y Reseña}         &
-			\color{white}\textbf{Tipo de Negocio}         &
-			\color{white}\textbf{Pueblo Mágico}           &
-			\color{white}\textbf{Calificación}                                             \\
-			\hline
-			Relax \%100: Playa limpia buenos servicios\ldots\ nos deja mal sabor de boca
-			fue el hotel por su falta de compromiso\ldots & Atracción & Isla Mujeres & 5/5 \\
-			\hline
-		\end{tabular}
-	\end{table}
-\end{frame}
-
-% =============================================================
-\section{Objetivos}
+\section{Objetivos y Solución Propuesta}
 % =============================================================
 
 \begin{frame}{Objetivos}
@@ -238,57 +200,7 @@
 	\end{itemize}
 \end{frame}
 
-% =============================================================
-\section{Marco Teórico}
-% =============================================================
-
-\begin{frame}{RAG: Generación aumentada por recuperación}
-	\textbf{Conocimiento limitado de los LLMs.}
-	\begin{itemize}
-		\item Un LLM aprende de un corpus general; su \textbf{memoria paramétrica}
-		      cubre mal dominios especializados y hechos locales.
-		\item Ante vacíos de información, tiende a \textbf{alucinar}: produce
-		      texto plausible pero falso, sin marcar la incertidumbre.
-		\item \emph{Ejemplo.} Preguntar ``¿qué problemas reportan los turistas
-		      en Santiago, N.L.?'' El modelo no vio reseñas turísticas de
-		      ese Pueblo Mágico durante el entrenamiento, así que es muy
-		      probable que \textbf{invente} quejas y atribuciones.
-	\end{itemize}
-
-	\medskip
-	\textbf{Idea principal.} En lugar de confiar en lo que el modelo
-	``recuerda'', \textbf{recuperamos} evidencia relevante (reseñas reales,
-	filtradas por pueblo y tipo de negocio) y se la entregamos como
-	contexto. La generación queda \textbf{anclada a documentos verificables}
-	en vez de a memoria difusa.
-\end{frame}
-
-\begin{frame}{¿Por qué salida estructurada? Intuición}
-	\textbf{El LLM no es el producto final.} Es \emph{un nodo} dentro de un
-	grafo (LangGraph) que consume y produce datos tipados:
-	\texttt{ConsolidatedReport}, \texttt{Scorecard}, \texttt{RoadmapActions}.
-	Texto libre rompe el pipeline.
-
-	\medskip
-	\textbf{Por qué imponemos un esquema fijo.}
-	\begin{itemize}
-		\item \textbf{Reproducibilidad}: misma entrada $\Rightarrow$ misma
-		      forma de salida, comparable entre corridas y entre pueblos.
-		\item \textbf{Alineación}: cada campo codifica una decisión editorial
-		      (qué reportar, con qué granularidad, qué taxonomía usar).
-		\item \textbf{Validación automática}: rangos
-		      (\texttt{score}\,$\in[1,10]$), tipos, listas no vacías — sin
-		      parsers tolerantes ni heurísticas de reparación.
-		\item \textbf{Composabilidad}: la rama de auditoría y el chat consumen
-		      los mismos objetos sin volver a parsear.
-	\end{itemize}
-
-	\smallskip
-	{\footnotesize El \emph{cómo} (constrained decoding + Pydantic) se
-		detalla en la sección 4.}
-\end{frame}
-
-\begin{frame}{Pipeline general (cinco fases)}
+\begin{frame}{Solución Propuesta}
 	\centering
 	\begin{tikzpicture}[
 		font=\scriptsize,
@@ -357,6 +269,94 @@
 	\textbf{3.} Reranking \quad
 	\textbf{4.} Generación restringida \\
 	\textbf{5.} Auditoría / evaluación
+\end{frame}
+
+% =============================================================
+\section{Conjunto de Datos}
+% =============================================================
+
+\begin{frame}{Conjunto de Datos}
+	\textbf{Descripción.} El conjunto de datos consta de \textbf{+300\,000} reseñas de turistas
+	sobre negocios / atracciones ubicados en los Pueblos Mágicos de México.
+	Cada registro cuenta con:
+
+	\begin{itemize}
+		\item Título y cuerpo de la reseña.
+		\item Nombre del negocio.
+		\item Tipo de Negocio (Hotel, Restaurante, Atracción).
+		\item Pueblo Mágico.
+		\item Calificación.
+	\end{itemize}
+
+	\medskip
+	\begin{table}[h]
+		\centering
+		\scriptsize
+		\setlength{\tabcolsep}{5pt}
+		\renewcommand{\arraystretch}{1.3}
+		\begin{tabular}{|p{0.36\textwidth}|p{0.17\textwidth}|p{0.17\textwidth}|p{0.12\textwidth}|}
+			\hline
+			\rowcolor{accent!80}
+			\color{white}\textbf{Titulo y Reseña}         &
+			\color{white}\textbf{Tipo de Negocio}         &
+			\color{white}\textbf{Pueblo Mágico}           &
+			\color{white}\textbf{Calificación}                                             \\
+			\hline
+			Relax \%100: Playa limpia buenos servicios\ldots\ nos deja mal sabor de boca
+			fue el hotel por su falta de compromiso\ldots & Atracción & Isla Mujeres & 5/5 \\
+			\hline
+		\end{tabular}
+	\end{table}
+\end{frame}
+
+% =============================================================
+\section{Marco Teórico}
+% =============================================================
+
+\begin{frame}{RAG: Generación aumentada por recuperación}
+	\textbf{Conocimiento limitado de los LLMs.}
+	\begin{itemize}
+		\item Un LLM aprende de un corpus general; su \textbf{memoria paramétrica}
+		      cubre mal dominios especializados y hechos locales.
+		\item Ante vacíos de información, tiende a \textbf{alucinar}: produce
+		      texto plausible pero falso, sin marcar la incertidumbre.
+		\item \emph{Ejemplo.} Preguntar ``¿qué problemas reportan los turistas
+		      en Santiago, N.L.?'' El modelo no vio reseñas turísticas de
+		      ese Pueblo Mágico durante el entrenamiento, así que es muy
+		      probable que \textbf{invente} quejas y atribuciones.
+	\end{itemize}
+
+	\medskip
+	\textbf{Idea principal.} En lugar de confiar en lo que el modelo
+	``recuerda'', \textbf{recuperamos} evidencia relevante (reseñas reales,
+	filtradas por pueblo y tipo de negocio) y se la entregamos como
+	contexto. La generación queda \textbf{anclada a documentos verificables}
+	en vez de a memoria difusa.
+\end{frame}
+
+\begin{frame}{¿Por qué salida estructurada? Intuición}
+	\textbf{El LLM no es el producto final.} Es \emph{un nodo} dentro de un
+	grafo (LangGraph) que consume y produce datos tipados:
+	\texttt{ConsolidatedReport}, \texttt{Scorecard}, \texttt{RoadmapActions}.
+	Texto libre rompe el pipeline.
+
+	\medskip
+	\textbf{Por qué imponemos un esquema fijo.}
+	\begin{itemize}
+		\item \textbf{Reproducibilidad}: misma entrada $\Rightarrow$ misma
+		      forma de salida, comparable entre corridas y entre pueblos.
+		\item \textbf{Alineación}: cada campo codifica una decisión editorial
+		      (qué reportar, con qué granularidad, qué taxonomía usar).
+		\item \textbf{Validación automática}: rangos
+		      (\texttt{score}\,$\in[1,10]$), tipos, listas no vacías — sin
+		      parsers tolerantes ni heurísticas de reparación.
+		\item \textbf{Composabilidad}: la rama de auditoría y el chat consumen
+		      los mismos objetos sin volver a parsear.
+	\end{itemize}
+
+	\smallskip
+	{\footnotesize El \emph{cómo} (constrained decoding + Pydantic) se
+		detalla en la sección 4.}
 \end{frame}
 
 \begin{frame}[fragile]{Notación y datos del corpus}

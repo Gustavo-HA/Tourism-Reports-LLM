@@ -179,99 +179,6 @@
 \end{frame}
 
 % =============================================================
-\section{Objetivos y Solución Propuesta}
-% =============================================================
-
-\begin{frame}{Objetivos}
-	\textbf{Objetivo General}\\[4pt]
-	Desarrollar un sistema basado en modelos grandes de lenguaje (LLM) para generar
-	automáticamente reportes sintéticos de alta calidad sobre la percepción y la experiencia
-	del turista en Pueblos Mágicos de México, a partir de colecciones masivas de reseñas.
-
-	\bigskip
-	\textbf{Objetivos Específicos}
-	\begin{itemize}
-		\item Diseñar y construir una base de conocimiento para el LLM a partir del conjunto
-		      de datos.
-		\item Implementar un flujo de trabajo para la generación de reportes que utilice la
-		      base de conocimiento, además de guiar al LLM en la estructuración y síntesis
-		      del contenido.
-		\item Evaluar la calidad, coherencia y factualidad de los reportes sintéticos generados.
-	\end{itemize}
-\end{frame}
-
-\begin{frame}{Solución Propuesta}
-	\centering
-	\begin{tikzpicture}[
-		font=\scriptsize,
-		node distance=4mm and 6mm,
-		every node/.style={align=center},
-		box/.style={rectangle, rounded corners=2pt, draw=primary, thick,
-				fill=soft, minimum width=24mm, minimum height=10mm,
-				inner sep=2pt},
-		phase/.style={rectangle, rounded corners=3pt, draw=accent, very thick,
-				fill=accent!10, minimum width=26mm, minimum height=12mm,
-				inner sep=2pt, font=\scriptsize\bfseries},
-		arr/.style={-{Stealth[length=2mm]}, thick, primary},
-		]
-
-		% Fase 1
-		\node[phase] (chunk)  {Chunking \\ \scriptsize(Recursive)};
-		\node[phase, right=of chunk] (emb)    {Embedding \\ \scriptsize SBERT-es};
-		\node[phase, right=of emb]   (hnsw)   {Indexado HNSW \\ \scriptsize(coseno)};
-
-		% Fase 2
-		\node[phase, below=10mm of chunk] (filt)  {Filtros\\meta\,$\mathcal{F}$};
-		\node[phase, right=of filt]       (ann)   {ANN top-$3K$ \\ \scriptsize bi-encoder};
-		\node[phase, right=of ann]        (ce)    {Cross-encoder \\ \scriptsize top-$K$};
-
-		% Fase 3
-		\node[phase, below=10mm of filt]  (gen)   {LLM \\ \scriptsize gpt-oss-120b};
-		\node[phase, right=of gen]        (cd)    {Constrained \\ decoding};
-		\node[phase, right=of cd]         (out)   {Salida\\Pydantic};
-
-		% Fase 4 (evaluación / auditoría)
-		\node[phase, right=18mm of out]   (audit) {Auditoría \\ self-correct};
-
-		% Conexiones horizontales por fila
-		\draw[arr] (chunk) -- (emb);
-		\draw[arr] (emb)   -- (hnsw);
-
-		\draw[arr] (filt)  -- (ann);
-		\draw[arr] (ann)   -- (ce);
-
-		\draw[arr] (gen)   -- (cd);
-		\draw[arr] (cd)    -- (out);
-
-		% Conexiones inter-fase
-		\draw[arr] (hnsw.south) -- ++(0,-2mm) -| (filt.north);
-		\draw[arr] (ce.south)   -- ++(0,-2mm) -| (gen.north);
-		\draw[arr] (out)        -- (audit);
-		\draw[arr, dashed, accent]
-		(audit.south) -- ++(0,-3mm) -| node[pos=0.25,below,font=\scriptsize\itshape]{retro $\le 3$} (gen.south);
-
-		% Etiquetas de fase
-		\node[left=2mm of chunk, font=\scriptsize\bfseries, primary]
-		{Fase 1};
-		\node[left=2mm of filt,  font=\scriptsize\bfseries, primary]
-		{Fase 2--3};
-		\node[left=2mm of gen,   font=\scriptsize\bfseries, primary]
-		{Fase 4};
-		\node[left=2mm of audit, font=\scriptsize\bfseries, primary, xshift=-2mm, yshift=+2mm]
-		{Fase 5};
-
-	\end{tikzpicture}
-
-	\vspace{2mm}
-	\footnotesize
-	\textbf{1.} Construcción vectorial \quad
-	\textbf{2.} Retrieval (filtros + ANN) \quad
-	\textbf{3.} Reranking \quad
-	\textbf{4.} Generación restringida \\
-	\textbf{5.} Auditoría / evaluación
-\end{frame}
-
-% =============================================================
 \section{Conjunto de Datos}
 % =============================================================
 
@@ -310,54 +217,105 @@
 \end{frame}
 
 % =============================================================
-\section{Marco Teórico}
+\section{Objetivos y Solución Propuesta}
 % =============================================================
 
-\begin{frame}{RAG: Generación aumentada por recuperación}
-	\textbf{Conocimiento limitado de los LLMs.}
-	\begin{itemize}
-		\item Un LLM aprende de un corpus general; su \textbf{memoria paramétrica}
-		      cubre mal dominios especializados y hechos locales.
-		\item Ante vacíos de información, tiende a \textbf{alucinar}: produce
-		      texto plausible pero falso, sin marcar la incertidumbre.
-		\item \emph{Ejemplo.} Preguntar ``¿qué problemas reportan los turistas
-		      en Santiago, N.L.?'' El modelo no vio reseñas turísticas de
-		      ese Pueblo Mágico durante el entrenamiento, así que es muy
-		      probable que \textbf{invente} quejas y atribuciones.
-	\end{itemize}
+\begin{frame}{Objetivos}
+	\textbf{Objetivo General}\\[4pt]
+	Desarrollar un sistema basado en modelos grandes de lenguaje (LLM) para generar
+	automáticamente reportes sintéticos de alta calidad sobre la percepción y la experiencia
+	del turista en Pueblos Mágicos de México, a partir de colecciones masivas de reseñas.
 
-	\medskip
-	\textbf{Idea principal.} En lugar de confiar en lo que el modelo
-	``recuerda'', \textbf{recuperamos} evidencia relevante (reseñas reales,
-	filtradas por pueblo y tipo de negocio) y se la entregamos como
-	contexto. La generación queda \textbf{anclada a documentos verificables}
-	en vez de a memoria difusa.
+	\bigskip
+	\textbf{Objetivos Específicos}
+	\begin{itemize}
+		\item Diseñar y construir una base de conocimiento para el LLM a partir del conjunto
+		      de datos.
+		\item Implementar un flujo de trabajo para la generación de reportes que utilice la
+		      base de conocimiento, además de guiar al LLM en la estructuración y síntesis
+		      del contenido.
+		\item Evaluar la calidad, coherencia y factualidad de los reportes sintéticos generados.
+	\end{itemize}
 \end{frame}
 
-\begin{frame}{¿Por qué salida estructurada? Intuición}
-	\textbf{El LLM no es el producto final.} Es \emph{un nodo} dentro de un
-	grafo (LangGraph) que consume y produce datos tipados:
-	\texttt{ConsolidatedReport}, \texttt{Scorecard}, \texttt{RoadmapActions}.
-	Texto libre rompe el pipeline.
+\begin{frame}{Solución Propuesta}
+	\centering
+	\begin{tikzpicture}[
+		font=\scriptsize,
+		node distance=4mm and 6mm,
+		every node/.style={align=center},
+		phase/.style={rectangle, rounded corners=3pt, draw=primary, thick,
+				fill=white, minimum width=26mm, minimum height=12mm,
+				inner sep=2pt, font=\scriptsize\bfseries},
+		arr/.style={-{Stealth[length=2mm]}, thick, primary},
+		stagebox/.style={rectangle, rounded corners=5pt, very thick,
+				inner sep=5pt},
+		]
 
-	\medskip
-	\textbf{Por qué imponemos un esquema fijo.}
-	\begin{itemize}
-		\item \textbf{Reproducibilidad}: misma entrada $\Rightarrow$ misma
-		      forma de salida, comparable entre corridas y entre pueblos.
-		\item \textbf{Alineación}: cada campo codifica una decisión editorial
-		      (qué reportar, con qué granularidad, qué taxonomía usar).
-		\item \textbf{Validación automática}: rangos
-		      (\texttt{score}\,$\in[1,10]$), tipos, listas no vacías — sin
-		      parsers tolerantes ni heurísticas de reparación.
-		\item \textbf{Composabilidad}: la rama de auditoría y el chat consumen
-		      los mismos objetos sin volver a parsear.
-	\end{itemize}
+		% Etapa 1 — RAG: construcción vectorial
+		\node[phase] (chunk)  {Fragmentación de \\ Textos};
+		\node[phase, right=of chunk] (emb)    {Embedding \\ \scriptsize SBERT-es};
+		\node[phase, right=of emb]   (hnsw)   {Indexado HNSW};
 
-	\smallskip
-	{\footnotesize El \emph{cómo} (constrained decoding + Pydantic) se
-		detalla en la sección 4.}
+		% Etapa 1 — RAG: retrieval + reranking
+		\node[phase, below=10mm of chunk] (filt)  {Filtros\\meta\,$\mathcal{F}$};
+		\node[phase, right=of filt]       (ann)   {Approximate Nearest \\Neighbors};
+		\node[phase, right=of ann]        (ce)    {Reranking \\ Cross-encoder};
+
+		% Etapa 2 — Generación
+		\node[phase, below=10mm of filt]  (gen)   {Elección de LLM};
+		\node[phase, right=of gen]        (cd)    {Constrained \\ decoding};
+		\node[phase, right=of cd]         (out)   {Salida\\Pydantic};
+
+		% Etapa 3 — Evaluación
+		\node[phase, right=20mm of out]   (audit) {Auditoría};
+
+		% Cajas de etapa (fondo)
+		\begin{scope}[on background layer]
+			\node[stagebox, draw=primary, fill=primary!8,
+				fit=(chunk)(emb)(hnsw)(filt)(ann)(ce)] (rag_box) {};
+			\node[stagebox, draw=accent, fill=accent!8,
+				fit=(gen)(cd)(out)] (gen_box) {};
+			\node[stagebox, draw=good, fill=good!8,
+				fit=(audit)] (eval_box) {};
+		\end{scope}
+
+		% Etiquetas de etapa
+		\node[right=4pt of rag_box, font=\scriptsize\bfseries, primary]
+		{Etapa 1: RAG};
+		\node[above=2pt of gen_box,  font=\scriptsize\bfseries, accent]
+		{Etapa 2: Generación};
+		\node[above=2pt of eval_box, font=\scriptsize\bfseries, good]
+		{Etapa 3: Evaluación};
+
+		% Conexiones horizontales
+		\draw[arr] (chunk) -- (emb);
+		\draw[arr] (emb)   -- (hnsw);
+		\draw[arr] (filt)  -- (ann);
+		\draw[arr] (ann)   -- (ce);
+		\draw[arr] (gen)   -- (cd);
+		\draw[arr] (cd)    -- (out);
+
+		% Conexiones inter-etapa
+		\draw[arr] (hnsw.south) -- ++(0,-2mm) -| (filt.north);
+		\draw[arr] (ce.south)   -- ++(0,-2mm) -| (gen.north);
+		\draw[arr] (out)        -- (audit);
+		\draw[arr, dashed, good]
+		(audit.south) -- ++(0,-4mm) -|
+		node[pos=0.25, below, font=\scriptsize\itshape]{Re-intento $\le 3$}
+		(gen.south);
+
+	\end{tikzpicture}
+
+	\footnotesize
+	\textbf{1.~RAG:} Construcción vectorial \textbullet\ Recuperación
+	\textbf{2.~Generación Estructurada} LLM + Estructura de salida
+	\textbf{3.~Evaluación:} Auditoría con auto-corrección
 \end{frame}
+
+% =============================================================
+\section{Marco Teórico}
+% =============================================================
 
 \begin{frame}[fragile]{Notación y datos del corpus}
 	\begin{columns}[T,onlytextwidth]
@@ -368,7 +326,7 @@
 		\medskip
 		\textbf{Volumen indexado.}
 		\begin{itemize}
-			\item $N = 1{,}067{,}981$ chunks
+			\item $N = 1{,}067{,}981$ fragmentos de texto
 			\item $\sim 5.1$ GB en disco (ChromaDB persistente)
 			\item Dim. del embedding $d = 768$
 		\end{itemize}
@@ -401,13 +359,64 @@
 	\end{columns}
 \end{frame}
 
+\begin{frame}{RAG: Generación aumentada por recuperación}
+	\textbf{Conocimiento limitado de los LLMs.}
+	\begin{itemize}
+		\item Un LLM aprende de un corpus general; su \textbf{memoria paramétrica}
+		      cubre mal dominios especializados y hechos locales.
+		\item Ante vacíos de información, tiende a \textbf{alucinar}: produce
+		      texto plausible pero falso, sin marcar la incertidumbre.
+		\item \emph{Ejemplo.} Preguntar ``¿qué problemas reportan los turistas
+		      en Santiago, N.L.?'' El modelo no vio reseñas turísticas de
+		      ese Pueblo Mágico durante el entrenamiento, así que es muy
+		      probable que \textbf{invente} quejas y atribuciones.
+	\end{itemize}
+
+	\medskip
+	\textbf{Idea principal.} En lugar de confiar en lo que el modelo
+	``recuerda'', \textbf{recuperamos} evidencia relevante (reseñas reales,
+	filtradas por pueblo y tipo de negocio) y se la entregamos como
+	contexto. La generación queda \textbf{anclada a documentos verificables}
+	en vez de a memoria difusa.
+\end{frame}
+
+\begin{frame}{Generación Estructurada}
+	% El LLM no es el producto final. El LLM es solo un componente del sistema.Es \emph{un nodo} dentro de un
+	% grafo (LangGraph) que consume y produce datos tipados:
+	% \texttt{ConsolidatedReport}, \texttt{Scorecard}, \texttt{RoadmapActions}.
+	% Texto libre rompe el pipeline.
+
+	El LLM genera texto libre, pero necesitamos estructurarlo para
+	garantizar una salida consistente y verificable. Sin esto, cada ejecución del LLM devuelve una salida libre, que puede no seguir el formato esperado de un reporte.
+
+	\medskip
+	\textbf{Por qué imponemos un esquema fijo.}
+	\begin{itemize}
+		\item \textbf{Reproducibilidad}: misma entrada $\Rightarrow$ misma
+		      forma de salida, comparable entre corridas y entre pueblos.
+		\item \textbf{Alineación}: cada campo codifica una decisión editorial
+		      (qué reportar, con qué granularidad, qué taxonomía usar).
+		\item \textbf{Validación automática}: rangos
+		      (\texttt{score}\,$\in[1,10]$), tipos, listas no vacías — sin
+		      parsers tolerantes ni heurísticas de reparación.
+		\item \textbf{Composabilidad}: la rama de auditoría y el chat consumen
+		      los mismos objetos sin volver a parsear.
+	\end{itemize}
+
+	\smallskip
+	{\footnotesize El \emph{cómo} (constrained decoding + Pydantic) se
+		detalla en la sección 4.}
+\end{frame}
+
 % =============================================================
 % CONSTRUCCION DE LA BASE VECTORIAL
+%
+\section*{1. Construcción de la base vectorial}
 % =============================================================
 
 \subsection{1. Construcción de la base vectorial}
 
-\begin{frame}{1.1 Chunking: intuición}
+\begin{frame}{1.1 Fragmentación: intuición}
 	\textbf{¿Por qué fragmentar?}
 	\begin{itemize}
 		\item Los \emph{transformers} de embedding tienen ventana finita
@@ -427,7 +436,7 @@
 		pequeña}.
 \end{frame}
 
-\begin{frame}[fragile]{1.1 Chunking: formulación y configuración}
+\begin{frame}[fragile]{1.1 Fragmentación: formulación y configuración}
 	\textbf{Splitter recursivo.} Sea $T$ el texto y
 	$S = (s_1, s_2, \dots, s_m)$ una jerarquía de separadores. El algoritmo
 	recursivo es:
@@ -459,9 +468,9 @@
 
 \subsection{1.2 Embeddings: SBERT en español}
 
-\begin{frame}{1.2 SBERT: arquitectura bi-encoder}
-	\textbf{Modelo:} \texttt{hiiamsid/sentence\_similarity\_spanish\_es}.
-	Fine-tuning de \textbf{BETO} (BERT entrenado sobre corpus en español) con la receta \emph{Sentence-BERT}.
+\begin{frame}{1.2 Embeddings de texto para similaridad}
+	\textbf{Modelo Bi-Encoder:} \texttt{hiiamsid/sentence\_similarity\_spanish\_es}.
+	Fine-tuning de \textbf{BETO} (BERT entrenado sobre corpus en español) para similaridad de textos.
 
 	\medskip
 	\textbf{Función de embedding.}
@@ -474,45 +483,50 @@
 	\]
 
 	\textbf{Objetivo de entrenamiento.}
-	Para pares $(a,b)$ con etiqueta $y$ (similitud), se minimiza un
+	Para pares $(a,b)$ con etiqueta $s$ (similitud), se minimiza un
 	\emph{cosine MSE}:
 	\[
-		\mathcal{L}(a,b,y) \;=\; \bigl(\,\cos(f(a), f(b)) - y\,\bigr)^2,
-	\]
-	o, en variantes con triple, \emph{multiple negatives ranking}:
-	\[
-		\mathcal{L} \;=\; -\log
-		\frac{\exp(\cos(f(a),f(b^+))/\tau)}
-		{\sum_{b\in\mathcal{B}} \exp(\cos(f(a),f(b))/\tau)}.
+		\mathcal{L}(a,b,s) \;=\; \bigl(\,\cos(f(a), f(b)) - s\,\bigr)^2,
 	\]
 \end{frame}
 
-\begin{frame}{1.2 ¿Por qué este modelo en este proyecto?}
+% \begin{frame}{1.2 ¿Por qué este modelo en este proyecto?}
+% 	\begin{itemize}
+% 		\item \textbf{Lengua nativa.} BETO se preentrenó sobre texto en
+% 		      español; el tokenizador maneja morfología
+% 		      (\emph{servicio/servicios}, \emph{atendieron}) sin la pérdida
+% 		      típica de modelos multilingües.
+
+% 		\item \textbf{Tarea alineada.} El modelo fue re-afinado con el objetivo
+% 		      de obtener similaridad semántica, exactamente la métrica
+% 		      que usaremos en la recuperación.
+
+% 		      % \item \textbf{Geometría útil.} El espacio resultante satisface
+% 		      %       anisotropía controlada: $\cos(f(x), f(y))$ correlaciona con
+% 		      %       similitud humana, condición necesaria para que la métrica HNSW
+% 		      %       sea informativa.
+
+% 		      % \item \textbf{Tamaño práctico.} $d=768$ es suficiente para
+% 		      %       discriminar tópicos turísticos sin inflar el índice ($N\cdot d
+% 		      % 	      \cdot 4\,\text{B} \approx 3.1\,\text{GB}$ solo en vectores).
+% 	\end{itemize}
+
+% 	\medskip
+% 	\textbf{Normalización.} Se utiliza la convención
+% 	$\hat{\vd} = \vd / \|\vd\|_2$, de modo que
+% 	$\cos(\vq,\vd) = \hat{\vq}\T \hat{\vd}$ y la similitud coseno se reduce
+% 	a un producto punto.
+% \end{frame}
+
+\begin{frame}{Ejemplo de recuperación}
+	\textbf{Consulta:} ``Problemas con acceso infraestructura, señalización, guía o seguridad.'' \\ \vspace{0.1cm}
+	\textbf{Resultados:}
 	\begin{itemize}
-		\item \textbf{Lengua nativa.} BETO se preentrenó sobre texto en
-		      español; el tokenizador maneja morfología
-		      (\emph{servicio/servicios}, \emph{atendieron}) sin la pérdida
-		      típica de modelos multilingües.
-
-		\item \textbf{Tarea alineada.} El head fue re-afinado con un objetivo
-		      de \emph{semantic textual similarity}, exactamente la métrica
-		      que usaremos en retrieval.
-
-		      % \item \textbf{Geometría útil.} El espacio resultante satisface
-		      %       anisotropía controlada: $\cos(f(x), f(y))$ correlaciona con
-		      %       similitud humana, condición necesaria para que la métrica HNSW
-		      %       sea informativa.
-
-		      % \item \textbf{Tamaño práctico.} $d=768$ es suficiente para
-		      %       discriminar tópicos turísticos sin inflar el índice ($N\cdot d
-		      % 	      \cdot 4\,\text{B} \approx 3.1\,\text{GB}$ solo en vectores).
+		\item ``manejan y no respetan al peatón y/o el orden de la circulación''
+		\item ``Algunos sitios son algo peligrosos. Ten cuidado''
+		\item ``y puesto que las aceras son demasiado estrechas o obstruida, es una danza hostil''
+		\item ...
 	\end{itemize}
-
-	\medskip
-	\textbf{Normalización.} Se utiliza la convención
-	$\hat{\vd} = \vd / \|\vd\|_2$, de modo que
-	$\cos(\vq,\vd) = \hat{\vq}\T \hat{\vd}$ y la similitud coseno se reduce
-	a un producto punto.
 \end{frame}
 
 \subsection{1.3 Indexado HNSW}
@@ -536,11 +550,11 @@
 	\medskip
 	\textbf{Solución: ANN (Approximate Nearest Neighbors).}\\
 	Aceptamos un recall ligeramente $<1$ a cambio de complejidad esperada
-	sub-lineal. La familia \textbf{HNSW} (Malkov \& Yashunin, 2018) es el
+	sub-lineal. El algoritmo \textit{Mundo Pequeño Nevagable Jerárquico} (HNSW) (Malkov \& Yashunin, 2018) es el
 	estado del arte para similaridad coseno/euclidiana en dimensiones moderadas.
 \end{frame}
 
-\begin{frame}{1.3 HNSW: Construcción}
+\begin{frame}{1.3 HNSW: Construcción de la base de conocimiento}
 	\textbf{Idea.} Combinar dos estructuras:
 	\begin{itemize}
 		\item \textbf{Skip-lists} $\to$ jerarquía probabilística de capas
@@ -550,7 +564,7 @@
 	\end{itemize}
 
 	\medskip
-	\textbf{Asignación de capas.} A cada nodo $v$ se le asigna un nivel
+	\textbf{Asignación de capas.} Cada nodo representa un fragmento de texto. A cada nodo $v$ se le asigna un nivel
 	máximo $\ell(v)$ con distribución geométrica truncada
 	\[
 		P(\ell = k) \;=\; (1-p)\,p^{k},
@@ -631,24 +645,13 @@
 			      contra k-NN exacto, manteniendo latencias de pocos ms.
 		\end{itemize}
 	\end{columns}
-
-	\bigskip
-	\textbf{Métrica del espacio.} \texttt{space=``cosine''}:
-	\[
-		\text{sim}(\vq,\vd) = \frac{\vq\cdot\vd}{\|\vq\|\,\|\vd\|},
-		\qquad
-		d_{\cos}(\vq,\vd) = 1 - \text{sim}(\vq,\vd).
-	\]
-	Tras L2-normalización, $\|\vq\|=\|\vd\|=1$ y la búsqueda HNSW
-	reduce su núcleo computacional a productos punto $\vq\T\vd$,
-	vectorizables sobre SIMD.
 \end{frame}
 
 % =============================================================
-\section{2. Fase de Retrieval}
+\section*{2. Recuperación}
 % =============================================================
 
-\begin{frame}{2. Retrieval: formulación}
+\begin{frame}{2. Recuperación: formulación}
 	\textbf{Problema.} Dada una consulta $\vq$ y un filtrado de metadatos
 	$\mathcal{F}$, recuperar
 	\[
@@ -667,18 +670,19 @@
 		                    & \bigl\{ \texttt{type} \in \{\text{Hotel, Restaurant}\}\bigr\}\
 		\land\ \cdots
 	\end{align*}
-	La estrategia es \textbf{pre-filtering}: se restringe el subgrafo HNSW
-	a $\mathcal{D}_{\mathcal{F}}$ \emph{antes} de la expansión greedy, en
-	contraste con \emph{post-filtering} (que descarta tras buscar y
-	sufre baja densidad efectiva si $\mathcal{F}$ es restrictivo).
+	La estrategia de pre-filtrado restringe el subgrafo HNSW
+	a $\mathcal{D}_{\mathcal{F}}$ \emph{antes} de la expansión greedy.
+	% , en
+	% contraste con \emph{post-filtering} (que descarta tras buscar y
+	% sufre baja densidad efectiva si $\mathcal{F}$ es restrictivo).
 
 	\medskip
 	\textbf{Razón.} Las consultas siempre se anclan a un Pueblo Mágico
-	y un tipo de negocio; sin pre-filtering, el ANN devolvería resultados
-	fuera de dominio que el reranker tendría que descartar.
+	y un tipo de negocio; sin pre-filtrado, el ANN devolvería resultados
+	fuera de dominio.
 \end{frame}
 
-\begin{frame}{2. Two-stage retrieval: recuperación y re-ranking}
+\begin{frame}{2. Recuperación en dos pasos: recuperación y re-ranking}
 	\textbf{Estrategia.} En lugar de pedir al bi-encoder los $K$ finales,
 	se sobre-recupera un factor $\alpha = 3$:
 	\[
@@ -687,7 +691,7 @@
 		\cos(\vq,\vd)
 		\quad\text{(bi-encoder, HNSW)}.
 	\]
-	Después, el cross-encoder reordena $\mathcal{C}^{(1)}$ y
+	Después, el cross-encoder $g$ reordena $\mathcal{C}^{(1)}$ y
 	\[
 		\mathcal{C}_K \;=\;
 		\text{top-}K_{\vd \in \mathcal{C}^{(1)}}
@@ -701,7 +705,7 @@
 		      en $\mathcal{C}^{(1)}$ aumenta notoriamente.
 		\item \textbf{Costo del reranker.} Cada par $(\vq,\vd)$ requiere un
 		      forward pass completo del cross-encoder; $\alpha=3$ mantiene la
-		      latencia del stage 2 acotada.
+		      latencia del re-ranking acotada.
 	\end{itemize}
 
 	\medskip
@@ -714,7 +718,7 @@
 % =============================================================
 
 \begin{frame}{3. Bi-encoder vs Cross-encoder}
-	\textbf{Bi-encoder} (\S 1.2).
+	\textbf{Bi-encoder}.
 	\[
 		\text{score}(\vq,\vd) \;=\; \cos\bigl(f(\vq),\, f(\vd)\bigr),
 		\qquad
@@ -778,22 +782,25 @@
 % =============================================================
 
 \begin{frame}{4. Generación: el problema de la salida estructurada}
-	\textbf{Modelo generador.}
-	\[
-		\texttt{groq/openai/gpt-oss-120b},\qquad
-		\tau = 0\ \text{(decodificación greedy)}.
-	\]
-	Greedy ($\tau=0$) elimina varianza estocástica:
-	\[
-		y_t \;=\; \argmax_{v \in \mathcal{V}}\,
-		p_\theta\bigl(v \mid y_{<t}, \vq, \mathcal{C}_K\bigr).
-	\]
+	% \textbf{Modelo generador.}
+	% \[
+	% 	\texttt{meta-llama/Llama-3.1-8B-Instruct},\qquad
+	% 	\tau = 0\ \text{(decodificación greedy)}.
+	% \]
+	% Greedy ($\tau=0$) elimina varianza estocástica:
+	% \[
+	% 	y_t \;=\; \argmax_{v \in \mathcal{V}}\,
+	% 	p_\theta\bigl(v \mid y_{<t}, \vq, \mathcal{C}_K\bigr).
+	% \]
 
-	\textbf{Reto.} Las fases posteriores del workflow (LangGraph) consumen
-	\emph{objetos tipados}: \texttt{ConsolidatedReport},
-	\texttt{Scorecard}, \texttt{RoadmapActions}. Un parser que
-	``espera JSON'' falla con cualquier desviación: comas finales,
-	campos extra, comillas mal colocadas, etc.
+	% \textbf{Reto.} Las fases posteriores del workflow (LangGraph) consumen
+	% \emph{objetos tipados}: \texttt{ConsolidatedReport},
+	% \texttt{Scorecard}, \texttt{RoadmapActions}. Un parser que
+	% ``espera JSON'' falla con cualquier desviación: comas finales,
+	% campos extra, comillas mal colocadas, etc.
+
+	\textbf{Reto:} El LLM genera texto libre, pero necesitamos estructurarlo para
+	garantizar una salida consistente y verificable. Sin esto, cada ejecución del LLM devuelve una salida libre, que puede no seguir el formato esperado de un reporte. Nuestro objetivo es poder definir un formato estructurado y que el LLM genere reportes consistentes.
 
 	\medskip
 	\textbf{Solución: constrained decoding.} En cada paso $t$ se
@@ -806,7 +813,7 @@
 \end{frame}
 
 \begin{frame}{4. Máscara de logits}
-	\textbf{Decodificación enmascarada.} Sea $\Pi_t \subseteq V$ el
+	\textbf{Decodificación enmascarada.} Sea $\mathcal{V}_t \subseteq \mathcal{V}$ el
 	conjunto de \emph{prefijos válidos} en el paso $t$. La máscara es
 	\[
 		m_t(v) =
@@ -921,7 +928,22 @@ class ConsolidatedReport(BaseModel):
 \end{frame}
 
 \begin{frame}[standout]
-	Preguntas
+	Gracias por su atención \\
+	¿Preguntas?
 \end{frame}
+
+% =============================================================
+\appendix
+
+\begin{frame}[standout]
+	Anexo
+\end{frame}
+
+\begin{frame}{Bi-Encoder utilizado}
+	\textbf{Modelo:} \texttt{sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
+
+\end{frame}
+
+% =============================================================
 
 \end{document}

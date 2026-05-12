@@ -432,38 +432,102 @@
 	\medskip
 	\textbf{Trade-off.} Chunks demasiado cortos pierden contexto
 	sintáctico; demasiado largos diluyen relevancia. Para reseñas (texto
-	corto y tópico-denso) se elige una ventana \emph{agresivamente
-		pequeña}.
+	corto y tópico-denso) se elige una ventana pequeña.
 \end{frame}
 
-\begin{frame}[fragile]{1.1 Fragmentación: formulación y configuración}
-	\textbf{Splitter recursivo.} Sea $T$ el texto y
-	$S = (s_1, s_2, \dots, s_m)$ una jerarquía de separadores. El algoritmo
-	recursivo es:
-	\[
-		\mathrm{split}(T, S) =
-		\begin{cases}
-			\{T\}                                  & \text{si } |T| \le L \\[2pt]
-			\bigcup_j \mathrm{split}(T_j, S_{2:m}) & \text{si } |T| > L,\
-			T = T_1 \oplus s_1 \oplus T_2 \oplus \cdots
-		\end{cases}
-	\]
-	con \emph{merge} posterior que respeta longitud máxima $L$ y
-	solapamiento $o$.
+% \begin{frame}[fragile]{1.1 Fragmentación: formulación y configuración}
+% 	% \textbf{Splitter recursivo.} Sea $T$ el texto y
+% 	% $S = (s_1, s_2, \dots, s_m)$ una jerarquía de separadores. El algoritmo
+% 	% recursivo es:
+% 	% \[
+% 	% 	\mathrm{split}(T, S) =
+% 	% 	\begin{cases}
+% 	% 		\{T\}                                  & \text{si } |T| \le L \\[2pt]
+% 	% 		\bigcup_j \mathrm{split}(T_j, S_{2:m}) & \text{si } |T| > L,\
+% 	% 		T = T_1 \oplus s_1 \oplus T_2 \oplus \cdots
+% 	% 	\end{cases}
+% 	% \]
+% 	% con \emph{merge} posterior que respeta longitud máxima $L$ y
+% 	% solapamiento $o$.
 
-	\medskip
-	\textbf{Configuración del proyecto:}
-	\begin{itemize}
-		\item $L = 200$ caracteres, $o = 50$ (ratio $25\%$)
-		\item $S = (\texttt{"\textbackslash n\textbackslash n", "\textbackslash n", ". ", " ", ""})$
-		\item Implementación: \texttt{RecursiveCharacterTextSplitter}
-		      (LangChain)
-	\end{itemize}
+% 	\medskip
+% 	\textbf{Configuración del proyecto:}
+% 	\begin{itemize}
+% 		\item $L = 200$ caracteres, $o = 50$ (ratio $25\%$)
+% 		\item $S = (\texttt{"\textbackslash n\textbackslash n", "\textbackslash n", ". ", " ", ""})$
+% 		\item Implementación: \texttt{RecursiveCharacterTextSplitter}
+% 		      (LangChain)
+% 	\end{itemize}
 
-	\medskip
-	\textbf{Justificación.} Las reseñas RESTMEX rara vez superan 1–2
-	párrafos; $L=200$ atomiza al nivel de \emph{frase larga / micro-aspecto},
-	y el solape $o=50$ evita cortar entidades en frontera.
+% 	\medskip
+% 	\textbf{Justificación.} Las reseñas RESTMEX rara vez superan 1–2
+% 	párrafos; $L=200$ atomiza al nivel de \emph{frase larga / micro-aspecto},
+% 	y el solape $o=50$ evita cortar entidades en frontera.
+
+% \end{frame}
+
+% --- Ejemplo de fragmentación ---
+\begin{frame}{1.1 Fragmentación: ejemplo real}
+	\vspace{\fill}
+	\begin{columns}[c]
+		\column{0.50\textwidth}
+		\begin{tikzpicture}[font=\tiny, >=Stealth]
+			% --- Barra: texto original ---
+			\node[font=\scriptsize\bfseries] at (4.0, 5.15) {Reseña original};
+			\fill[gray!20]    (0.0, 4.65) rectangle (8.0, 5.00);
+			\draw[gray!60]    (0.0, 4.65) rectangle (8.0, 5.00);
+			\node[font=\tiny, text=black!80] at (4.0, 4.825)
+			{\textit{``Pasamos una semana aquí\ldots La playa es bonita\ldots El servicio es amable\ldots''}};
+
+			% --- Fragmento 1 ---
+			\fill[primary!25] (0.0, 3.30) rectangle (4.8, 3.75);
+			\draw[primary!70, thick] (0.0, 3.30) rectangle (4.8, 3.75);
+			\node[font=\tiny\bfseries] at (2.4, 3.525) {Fragmento 1};
+
+			% --- Fragmento 2 ---
+			\fill[accent!20]  (1.6, 2.20) rectangle (6.4, 2.65);
+			\draw[accent!70,  thick] (1.6, 2.20) rectangle (6.4, 2.65);
+			\node[font=\tiny\bfseries] at (4.0, 2.425) {Fragmento 2};
+
+			% --- Fragmento 3 ---
+			\fill[blue!15]    (3.2, 1.10) rectangle (8.0, 1.55);
+			\draw[blue!50,    thick] (3.2, 1.10) rectangle (8.0, 1.55);
+			\node[font=\tiny\bfseries] at (5.6, 1.325) {Fragmento 3};
+
+			% Líneas de guía verticales
+			\foreach \x/\bot in {0.0/3.30, 4.8/3.30, 1.6/2.20, 6.4/2.20, 3.2/1.10, 8.0/1.10}{
+					\draw[dashed, gray!45, thin] (\x, 4.65) -- (\x, \bot);
+				}
+		\end{tikzpicture}
+
+		\column{0.50\textwidth}
+		\centering
+		{\tiny\setlength{\fboxsep}{3pt}%
+			\colorbox{primary!25}{\parbox{4.8cm}{%
+					\textbf{Fragmento 1}\\[1pt]
+					\textit{``Pasamos una semana aquí, recientemente,
+						y nos gustó mucho el lugar. Puedo ver
+						por qué se llama el mejor hotel de la isla\ldots''}
+				}}
+
+			\vspace{4pt}
+			\colorbox{accent!20}{\parbox{4.8cm}{%
+					\textbf{Fragmento 2}\\[1pt]
+					\textit{``\ldots\ Realmente la única pega es la
+						ubicación, lo que puede ser una ventaja
+						si no quieres estar alrededor de los
+						centros de la isla\ldots''}
+				}}
+
+			\vspace{4pt}
+			\colorbox{blue!15}{\parbox{4.8cm}{%
+					\textbf{Fragmento 3}\\[1pt]
+					\textit{``\ldots\ La playa es bonita, exclusiva
+						para el hotel, y las piscinas son de calidad.
+						El servicio es amable y satisfactorio\ldots''}
+				}}
+		}
+	\end{columns}
 \end{frame}
 
 \subsection{1.2 Embeddings: SBERT en español}
@@ -482,6 +546,8 @@
 		\;\in\; \R^{768}.
 	\]
 
+	Además, se aplica una normalización L2 a los embeddings para que la distancia coseno sea solo un producto punto.
+
 	\textbf{Objetivo de entrenamiento.}
 	Para pares $(a,b)$ con etiqueta $s$ (similitud), se minimiza un
 	\emph{cosine MSE}:
@@ -490,37 +556,9 @@
 	\]
 \end{frame}
 
-% \begin{frame}{1.2 ¿Por qué este modelo en este proyecto?}
-% 	\begin{itemize}
-% 		\item \textbf{Lengua nativa.} BETO se preentrenó sobre texto en
-% 		      español; el tokenizador maneja morfología
-% 		      (\emph{servicio/servicios}, \emph{atendieron}) sin la pérdida
-% 		      típica de modelos multilingües.
-
-% 		\item \textbf{Tarea alineada.} El modelo fue re-afinado con el objetivo
-% 		      de obtener similaridad semántica, exactamente la métrica
-% 		      que usaremos en la recuperación.
-
-% 		      % \item \textbf{Geometría útil.} El espacio resultante satisface
-% 		      %       anisotropía controlada: $\cos(f(x), f(y))$ correlaciona con
-% 		      %       similitud humana, condición necesaria para que la métrica HNSW
-% 		      %       sea informativa.
-
-% 		      % \item \textbf{Tamaño práctico.} $d=768$ es suficiente para
-% 		      %       discriminar tópicos turísticos sin inflar el índice ($N\cdot d
-% 		      % 	      \cdot 4\,\text{B} \approx 3.1\,\text{GB}$ solo en vectores).
-% 	\end{itemize}
-
-% 	\medskip
-% 	\textbf{Normalización.} Se utiliza la convención
-% 	$\hat{\vd} = \vd / \|\vd\|_2$, de modo que
-% 	$\cos(\vq,\vd) = \hat{\vq}\T \hat{\vd}$ y la similitud coseno se reduce
-% 	a un producto punto.
-% \end{frame}
-
 \begin{frame}{Ejemplo de recuperación}
 	\textbf{Consulta:} ``Problemas con acceso infraestructura, señalización, guía o seguridad.'' \\ \vspace{0.1cm}
-	\textbf{Resultados:}
+	\textbf{Fragmentos relevantes:}
 	\begin{itemize}
 		\item ``manejan y no respetan al peatón y/o el orden de la circulación''
 		\item ``Algunos sitios son algo peligrosos. Ten cuidado''
@@ -620,38 +658,11 @@
 	\end{figure}
 \end{frame}
 
-\begin{frame}{1.3 Hiperparámetros del proyecto}
-	\begin{columns}[T]
-		\column{0.5\textwidth}
-		\textbf{\texttt{ef\_construction = 200}}
-		\begin{itemize}
-			\item Tamaño de la lista dinámica de candidatos al \emph{construir}
-			      el grafo.
-			\item Controla la calidad de las aristas: cuanto mayor, mejor
-			      conectividad y mejor recall asintótico.
-			\item Costo: tiempo de indexado escala $\sim$ lineal en
-			      \texttt{ef\_construction}.
-		\end{itemize}
-
-		\column{0.5\textwidth}
-		\textbf{\texttt{ef\_search = 200}}
-		\begin{itemize}
-			\item Análogo al anterior pero \emph{en consulta}.
-			\item Trade-off recall@$K$ vs latencia. Para HNSW de coseno,
-			      \texttt{ef\_search}$\approx 200$ alcanza típicamente
-			      \[
-				      \text{recall@10} \approx 0.95\text{--}0.98
-			      \]
-			      contra k-NN exacto, manteniendo latencias de pocos ms.
-		\end{itemize}
-	\end{columns}
-\end{frame}
-
 % =============================================================
 \section*{2. Recuperación}
 % =============================================================
 
-\begin{frame}{2. Recuperación: formulación}
+\begin{frame}{2. Recuperación: filtrado de datos}
 	\textbf{Problema.} Dada una consulta $\vq$ y un filtrado de metadatos
 	$\mathcal{F}$, recuperar
 	\[
@@ -713,94 +724,90 @@
 	el cross-encoder discrimina con alta precisión sobre un conjunto pequeño.
 \end{frame}
 
-% =============================================================
-\section{3. Reranking con Cross-Encoder}
-% =============================================================
+% -------------------------------------------------------------
+\begin{frame}{2. Re-ranking — ejemplo con reseñas de hotel}
+	\vspace{-0.15em}
+	\begin{center}
+		\small\textbf{Consulta:}\;
+		\textit{``¿Cómo es el desayuno en los hoteles?''}
+		\quad{\scriptsize ($\alpha=3,\;K=3$)}
+	\end{center}
+	\vspace{-0.45em}
+	\centering
+	\begin{tikzpicture}[
+		box/.style={rectangle, rounded corners=2pt,
+				minimum width=5.3cm, minimum height=0.56cm,
+				text width=5.0cm, font=\tiny, align=left,
+				inner sep=3pt},
+		rel/.style={box, fill=good!12, draw=good!70},
+		irr/.style={box, fill=gray!10, draw=gray!40},
+		hdr/.style={font=\scriptsize\bfseries, align=center},
+		arr/.style={-{Stealth[length=4pt]}, thick, good,
+		shorten >=2pt, shorten <=2pt},
+		]
 
-\begin{frame}{3. Bi-encoder vs Cross-encoder}
-	\textbf{Bi-encoder}.
-	\[
-		\text{score}(\vq,\vd) \;=\; \cos\bigl(f(\vq),\, f(\vd)\bigr),
-		\qquad
-		f:\Sigma^{*} \to \R^{768}.
-	\]
-	\emph{Dos forward passes independientes.} Cacheable: $f(\vd)$ se
-	calcula una sola vez en indexado.
+		% ---- Columna izquierda: bi-encoder ----
+		\node[hdr] at (2.9, 0.15) {Bi-encoder — 6 candidatos};
 
-	\bigskip
-	\textbf{Cross-encoder.}
-	\[
-		\text{score}(\vq,\vd) \;=\;
-		g\bigl([\,\vq;\, \texttt{[SEP]};\, \vd\,]\bigr),
-		\qquad
-		g:\Sigma^{*} \to \R.
-	\]
-	\emph{Un único forward pass} sobre la concatenación. La auto-atención
-	ve \emph{todos los tokens de $\vq$ y $\vd$ simultáneamente}, así puede
-	modelar interacciones token-a-token:
-	\[
-		\alpha_{ij} \;=\;
-		\softmax_{j}\!\left(
-		\frac{\mathbf{q}_i\T \mathbf{k}_j}{\sqrt{d_k}}
-		\right),
-		\qquad
-		i \in \vq,\ j \in \vd.
-	\]
+		\node[irr] (b1) at (2.9,-0.50)
+		{\#1\;sim\,=\,0.82\enspace``Habitaciones amplias, alberca infinita\ldots''};
+		\node[rel] (b2) at (2.9,-1.10)
+		{\#2\;sim\,=\,0.79\enspace``Desayuno buffet: fruta fresca y café de olla\ldots''};
+		\node[irr] (b3) at (2.9,-1.70)
+		{\#3\;sim\,=\,0.77\enspace``Servicio impecable del personal del hotel\ldots''};
+		\node[rel] (b4) at (2.9,-2.30)
+		{\#4\;sim\,=\,0.75\enspace``Huevos rancheros del desayuno, lo mejor\ldots''};
+		\node[irr] (b5) at (2.9,-2.90)
+		{\#5\;sim\,=\,0.73\enspace``Hotel bien ubicado, precios razonables\ldots''};
+		\node[rel] (b6) at (2.9,-3.50)
+		{\#6\;sim\,=\,0.71\enspace``Menú incluye opciones veganas en desayuno\ldots''};
 
-	\textbf{Trade-off.} El cross-encoder es estrictamente más
-	\emph{expresivo} pero no cacheable: requiere $|\mathcal{C}^{(1)}|$
-	forwards \emph{en línea}.
+		% ---- Columna derecha: cross-encoder ----
+		\node[hdr] at (10.1, 0.15) {Cross-encoder — top-3 final};
+
+		\node[rel] (c1) at (10.1,-0.50)
+		{\#1\;rel\,=\,0.94\enspace``Desayuno buffet: fruta fresca y café de olla\ldots''};
+		\node[rel] (c2) at (10.1,-1.10)
+		{\#2\;rel\,=\,0.91\enspace``Huevos rancheros del desayuno, lo mejor\ldots''};
+		\node[rel] (c3) at (10.1,-1.70)
+		{\#3\;rel\,=\,0.88\enspace``Menú incluye opciones veganas en desayuno\ldots''};
+
+		% ---- Flechas (los relevantes ascienden) ----
+		\draw[arr] (b2.east) to[out=0, in=180] (c1.west);
+		\draw[arr] (b4.east) to[out=0, in=180] (c2.west);
+		\draw[arr] (b6.east) to[out=0, in=180] (c3.west);
+
+		% ---- Leyenda ----
+		\node[font=\tiny, text=gray!70, align=center] at (6.5,-4.2)
+		{Verde: reseña relevante para la consulta.\quad
+			Gris: reseña fuera de tema (eliminada).};
+
+	\end{tikzpicture}
 \end{frame}
 
-\begin{frame}{3. Modelo: \texttt{mmarco-mMiniLMv2-L12-H384-v1}}
-	\textbf{Arquitectura.}
-	\begin{itemize}
-		\item 12 capas de transformer, hidden size $384$.
-		\item Destilado de modelos MiniLM.
-	\end{itemize}
-
-	\textbf{Entrenamiento (mMARCO multilingüe).}
-	\begin{itemize}
-		\item Corpus: traducción multilingüe del MS MARCO Passage Ranking
-		      (consulta $\to$ pasaje).
-		\item Objetivo \textbf{point-wise}: regresión de relevancia
-		      $y\in\{0,1\}$ con \emph{binary cross-entropy} sobre el logit:
-		      \[
-			      \mathcal{L}(\vq,\vd,y) =
-			      -\,y \log \sigma(g(\vq,\vd))
-			      -\,(1-y)\log\bigl(1-\sigma(g(\vq,\vd))\bigr).
-		      \]
-	\end{itemize}
-
-	\textbf{Idoneidad.} Multilingüe $\Rightarrow$ generaliza al español
-	sin re-entrenamiento; tamaño moderado $\Rightarrow$
-	inferencia $< 50$ ms por par en GPU de consumidor.
-\end{frame}
+% =============================================================
+% =============================================================
 
 % =============================================================
 \section{4. Generación de texto restringida}
 % =============================================================
 
 \begin{frame}{4. Generación: el problema de la salida estructurada}
-	% \textbf{Modelo generador.}
-	% \[
-	% 	\texttt{meta-llama/Llama-3.1-8B-Instruct},\qquad
-	% 	\tau = 0\ \text{(decodificación greedy)}.
-	% \]
-	% Greedy ($\tau=0$) elimina varianza estocástica:
-	% \[
-	% 	y_t \;=\; \argmax_{v \in \mathcal{V}}\,
-	% 	p_\theta\bigl(v \mid y_{<t}, \vq, \mathcal{C}_K\bigr).
-	% \]
+	\textbf{Modelo generador.}
+	\[
+		\texttt{meta-llama/Llama-3.1-8B-Instruct},\qquad
+		\tau = 0\ \text{(decodificación greedy)}.
+	\]
+	Eliminando varianza estocástica:
+	\[
+		y_t \;=\; \argmax_{v \in \mathcal{V}}\,
+		p_\theta\bigl(v \mid y_{<t}, \vq, \mathcal{C}_K\bigr).
+	\]
 
-	% \textbf{Reto.} Las fases posteriores del workflow (LangGraph) consumen
-	% \emph{objetos tipados}: \texttt{ConsolidatedReport},
-	% \texttt{Scorecard}, \texttt{RoadmapActions}. Un parser que
-	% ``espera JSON'' falla con cualquier desviación: comas finales,
-	% campos extra, comillas mal colocadas, etc.
-
-	\textbf{Reto:} El LLM genera texto libre, pero necesitamos estructurarlo para
-	garantizar una salida consistente y verificable. Sin esto, cada ejecución del LLM devuelve una salida libre, que puede no seguir el formato esperado de un reporte. Nuestro objetivo es poder definir un formato estructurado y que el LLM genere reportes consistentes.
+	\textbf{Reto.} Las fases posteriores del flujo de trabajo consumen
+	\emph{objetos tipados} (Formato de salida JSON). Un parser que
+	``espera JSON'' falla con cualquier desviación: comas finales,
+	campos extra, comillas mal colocadas, etc.
 
 	\medskip
 	\textbf{Solución: constrained decoding.} En cada paso $t$ se
@@ -919,7 +926,7 @@ class ConsolidatedReport(BaseModel):
 			Index         & HNSW coseno, $\texttt{ef}=200$      & $\mathcal{O}(\log N)$, recall$\approx 0.95$   \\
 			Retrieval     & pre-filter $+$ overfetch $\alpha=3$ & dominio acotado $+$ pool denso                \\
 			Rerank        & cross-encoder mMiniLM-L12           & precisión token-a-token, multilingüe          \\
-			Gen.          & gpt-oss-120b, $\tau=0$              & determinismo y reproducibilidad               \\
+			Gen.          & Llama-3.1-8B-Instruct, $\tau=0$     & determinismo y reproducibilidad               \\
 			Output        & Pydantic $\to$ JSON Schema          & garantía sintáctica vía CFG masking           \\
 			Eval.         & auditor $\le 3$ iter.               & \emph{groundedness} antes de publicar         \\
 			\bottomrule
@@ -942,8 +949,104 @@ class ConsolidatedReport(BaseModel):
 \begin{frame}{Bi-Encoder utilizado}
 	\textbf{Modelo:} \texttt{sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2}
 
+	\begin{itemize}
+		\item \textbf{Lengua nativa.} BETO se preentrenó sobre texto en
+		      español; el tokenizador maneja morfología
+		      (\emph{servicio/servicios}, \emph{atendieron}) sin la pérdida
+		      típica de modelos multilingües.
+
+		\item \textbf{Tarea alineada.} El modelo fue re-afinado con el objetivo
+		      de obtener similaridad semántica, exactamente la métrica
+		      que usaremos en la recuperación.
+	\end{itemize}
 \end{frame}
 
+\begin{frame}{Hiperparámetros del HNSW}
+	\begin{columns}[T]
+		\column{0.5\textwidth}
+		\textbf{\texttt{ef\_construction = 200}}
+		\begin{itemize}
+			\item Tamaño de la lista dinámica de candidatos al \emph{construir}
+			      el grafo.
+			\item Controla la calidad de las aristas: cuanto mayor, mejor
+			      conectividad y mejor recall asintótico.
+			\item Costo: tiempo de indexado escala $\sim$ lineal en
+			      \texttt{ef\_construction}.
+		\end{itemize}
+
+		\column{0.5\textwidth}
+		\textbf{\texttt{ef\_search = 200}}
+		\begin{itemize}
+			\item Análogo al anterior pero \emph{en consulta}.
+			\item Trade-off recall@$K$ vs latencia. Para HNSW de coseno,
+			      \texttt{ef\_search}$\approx 200$ alcanza típicamente
+			      \[
+				      \text{recall@10} \approx 0.95\text{--}0.98
+			      \]
+			      contra k-NN exacto, manteniendo latencias de pocos ms.
+		\end{itemize}
+	\end{columns}
+\end{frame}
+
+\begin{frame}{Modelo Cross-Encoder: \texttt{mmarco-mMiniLMv2-L12-H384-v1}}
+	\textbf{Arquitectura.}
+	\begin{itemize}
+		\item 12 capas de transformer, hidden size $384$.
+		\item Destilado de modelos MiniLM.
+	\end{itemize}
+
+	\textbf{Entrenamiento (mMARCO multilingüe).}
+	\begin{itemize}
+		\item Corpus: traducción multilingüe del MS MARCO Passage Ranking
+		      (consulta $\to$ pasaje).
+		\item Objetivo \textbf{point-wise}: regresión de relevancia
+		      $y\in\{0,1\}$ con \emph{binary cross-entropy} sobre el logit:
+		      \[
+			      \mathcal{L}(\vq,\vd,y) =
+			      -\,y \log \sigma(g(\vq,\vd))
+			      -\,(1-y)\log\bigl(1-\sigma(g(\vq,\vd))\bigr).
+		      \]
+	\end{itemize}
+
+	\textbf{Idoneidad.} Multilingüe $\Rightarrow$ generaliza al español
+	sin re-entrenamiento; tamaño moderado $\Rightarrow$
+	inferencia $< 50$ ms por par en GPU de consumidor.
+\end{frame}
+
+\begin{frame}{2. Bi-encoder vs Cross-encoder}
+	\textbf{Bi-encoder}.
+	\[
+		\text{score}(\vq,\vd) \;=\; \cos\bigl(f(\vq),\, f(\vd)\bigr),
+		\qquad
+		f:\Sigma^{*} \to \R^{768}.
+	\]
+	\emph{Dos forward passes independientes.} Cacheable: $f(\vd)$ se
+	calcula una sola vez en indexado.
+
+	\bigskip
+	\textbf{Cross-encoder.}
+	\[
+		\text{score}(\vq,\vd) \;=\;
+		g\bigl([\,\vq;\, \texttt{[SEP]};\, \vd\,]\bigr),
+		\qquad
+		g:\Sigma^{*} \to \R.
+	\]
+	\emph{Un único forward pass} sobre la concatenación. La auto-atención
+	ve \emph{todos los tokens de $\vq$ y $\vd$ simultáneamente}, así puede
+	modelar interacciones token-a-token:
+	\[
+		\alpha_{ij} \;=\;
+		\softmax_{j}\!\left(
+		\frac{\mathbf{q}_i\T \mathbf{k}_j}{\sqrt{d_k}}
+		\right),
+		\qquad
+		i \in \vq,\ j \in \vd.
+	\]
+
+	\textbf{Trade-off.} El cross-encoder es estrictamente más
+	\emph{expresivo} pero no cacheable: requiere $|\mathcal{C}^{(1)}|$
+	forwards \emph{en línea}.
+\end{frame}
 % =============================================================
 
 \end{document}

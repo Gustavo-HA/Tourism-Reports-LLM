@@ -10,6 +10,7 @@
 \usepackage[spanish,es-tabla]{babel}
 \usepackage{amsmath,amssymb,amsthm,bm}
 \usepackage{mathtools}
+\usepackage{bbm}
 \usepackage{booktabs}
 \usepackage{tikz}
 \usepackage[table]{xcolor}
@@ -61,7 +62,7 @@
 
 % --- Metadatos ---
 \title{Generación de Reportes Sintéticos sobre Pueblos Mágicos usando RAG}
-\subtitle{Laboratorio ATLAS \\ Dr. Miguel Ángel Álvarez Carmona}
+\subtitle{Laboratorio ATLAS \\ Contacto: Dr. Miguel Ángel Álvarez Carmona}
 \author{Gustavo Hernández Angeles}
 \date{12 de mayo de 2026}
 
@@ -235,6 +236,24 @@
 		      base de conocimiento, además de guiar al LLM en la estructuración y síntesis
 		      del contenido.
 		\item Evaluar la calidad, coherencia y factualidad de los reportes sintéticos generados.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Alcance del proyecto}
+	\textbf{Lo que se entrega.} Un prototipo funcional a nivel de
+	flujo de trabajo, el cual es ejecutable desde la línea de comandos.
+
+	\medskip
+	\textbf{Lo que queda fuera del alcance.}
+	\begin{itemize}\setlength\itemsep{3pt}
+		\item No contempla el \textbf{despliegue en producción} ni el
+		      desarrollo de una \textbf{interfaz de usuario} (web, móvil o
+		      escritorio) para consumo por usuarios finales.
+		\item No incluye esfuerzos de ingeniería de software orientados a
+		      \textbf{escalabilidad, monitoreo, autenticación} u otras
+		      consideraciones propias de un producto listo para uso final.
+		\item El resultado es un \textbf{prototipo a nivel de flujo de trabajo},
+		      no una aplicación desplegada.
 	\end{itemize}
 \end{frame}
 
@@ -722,15 +741,15 @@
 		\node[hdr] at (2.9, 0.15) {Bi-encoder — 6 candidatos};
 
 		\node[irr] (b1) at (2.9,-0.50)
-		{\#1\;sim\,=\,0.82\enspace``Habitaciones amplias, alberca infinita\ldots''};
+		{\#1\;sim\,=\,0.82\enspace``La cocina disponible no tiene\ldots''};
 		\node[rel] (b2) at (2.9,-1.10)
 		{\#2\;sim\,=\,0.79\enspace``Desayuno buffet: fruta fresca y café de olla\ldots''};
 		\node[irr] (b3) at (2.9,-1.70)
-		{\#3\;sim\,=\,0.77\enspace``Servicio impecable del personal del hotel\ldots''};
+		{\#3\;sim\,=\,0.77\enspace``El atún estaba muy bueno\ldots''};
 		\node[rel] (b4) at (2.9,-2.30)
 		{\#4\;sim\,=\,0.75\enspace``Huevos rancheros del desayuno, lo mejor\ldots''};
 		\node[irr] (b5) at (2.9,-2.90)
-		{\#5\;sim\,=\,0.73\enspace``Hotel bien ubicado, precios razonables\ldots''};
+		{\#5\;sim\,=\,0.73\enspace``Un buen lugar para comer en la mañana\ldots''};
 		\node[rel] (b6) at (2.9,-3.50)
 		{\#6\;sim\,=\,0.71\enspace``Menú incluye opciones veganas en desayuno\ldots''};
 
@@ -765,16 +784,16 @@
 % =============================================================
 
 \begin{frame}{4. Generación: el problema de la salida estructurada}
-	\textbf{Modelo generador.}
-	\[
-		\texttt{meta-llama/Llama-3.1-8B-Instruct},\qquad
-		\tau = 0\ \text{(decodificación greedy)}.
-	\]
-	Eliminando varianza estocástica:
-	\[
-		y_t \;=\; \argmax_{v \in \mathcal{V}}\,
-		p_\theta\bigl(v \mid y_{<t}, \vq, \mathcal{C}_K\bigr).
-	\]
+	% \textbf{Modelo generador.}
+	% \[
+	% 	\texttt{meta-llama/Llama-3.1-8B-Instruct},\qquad
+	% 	\tau = 0\ \text{(decodificación greedy)}.
+	% \]
+	% Eliminando varianza estocástica:
+	% \[
+	% 	y_t \;=\; \argmax_{v \in \mathcal{V}}\,
+	% 	p_\theta\bigl(v \mid y_{<t}, \vq, \mathcal{C}_K\bigr).
+	% \]
 
 	\textbf{Reto.} Las fases posteriores del flujo de trabajo consumen
 	\emph{objetos tipados} (Formato de salida JSON). Un parser que
@@ -783,11 +802,11 @@
 
 	\medskip
 	\textbf{Solución: constrained decoding.} En cada paso $t$ se
-	\textbf{restringe el soporte} de $p_\theta$ a un subconjunto
+	\textbf{restringe el soporte} de la probabilidad $p_\theta$ de un token $v$ a un subconjunto
 	$\mathcal{V}_t \subseteq \mathcal{V}$ permitido por la gramática:
 	\[
 		\tilde p_\theta(v\mid \cdot) \;\propto\;
-		p_\theta(v\mid \cdot)\cdot \mathbf{1}\left[v \in \mathcal{V}_t\right].
+		p_\theta(v\mid \cdot)\cdot \mathbbm{1}\left[v \in \mathcal{V}_t\right].
 	\]
 \end{frame}
 
@@ -905,28 +924,124 @@ class ConsolidatedReport(BaseModel):
 \end{frame}
 
 % =============================================================
-\section{Cierre}
+\section*{6. Chat interactivo sobre el reporte}
 % =============================================================
 
-\begin{frame}{Síntesis del diseño}
-	\begin{table}[h]
-		\centering
-		\scriptsize
-		\begin{tabular}{@{}lll@{}}
-			\toprule
-			\textbf{Fase} & \textbf{Decisión}                   & \textbf{Justificación}                        \\ \midrule
-			Chunking      & $L=200$, $o=50$                     & granularidad de aspecto, sin cortar entidades \\
-			Embedding     & SBERT-es, $d=768$                   & lengua nativa + objetivo STS alineado         \\
-			Index         & HNSW coseno, $\texttt{ef}=200$      & $\mathcal{O}(\log N)$, recall$\approx 0.95$   \\
-			Retrieval     & pre-filter $+$ overfetch $\alpha=3$ & dominio acotado $+$ pool denso                \\
-			Rerank        & cross-encoder mMiniLM-L12           & precisión token-a-token, multilingüe          \\
-			Gen.          & Llama-3.1-8B-Instruct, $\tau=0$     & determinismo y reproducibilidad               \\
-			Judge         & gpt-oss-120b, $\tau=0$              & evaluación automática                         \\
-			Output        & Pydantic $\to$ JSON Schema          & garantía sintáctica vía CFG masking           \\
-			Eval.         & auditor $\le 3$ iter.               & \emph{validación} antes de publicar           \\
-			\bottomrule
-		\end{tabular}
-	\end{table}
+\begin{frame}{6. Chat: motivación}
+	\textbf{Limitación de un reporte estático.} El \texttt{ConsolidatedReport}
+	condensa cientos de miles de reseñas en unas pocas páginas. Esa síntesis
+	es útil para decisión, pero \emph{pierde} matices que el analista quiere
+	explorar a posteriori: ejemplos concretos, lugares específicos, polaridad
+	de quejas, comparativos entre tipos de negocio.
+
+	\medskip
+	\textbf{Idea.} Un modo \emph{conversacional} sobre el mismo corpus,
+	anclado al reporte ya generado. Permite al usuario formular preguntas en
+	lenguaje natural (\emph{``¿qué quejas hay sobre los restaurantes?''},
+	\emph{``muéstrame reseñas negativas del hotel X''}) y recibir respuestas
+	respaldadas por evidencia recuperada en línea.
+
+	\medskip
+	\textbf{Diseño.} Un segundo grafo (LangGraph) reutiliza la base vectorial
+	y el LLM, pero invierte el flujo: en vez de \emph{map-reduce} sobre todo
+	el corpus, hace \emph{una} consulta dirigida por la pregunta del usuario.
+\end{frame}
+
+\begin{frame}{6. Chat: arquitectura del grafo}
+	\centering
+	\begin{tikzpicture}[
+		font=\scriptsize,
+		node distance=4mm and 8mm,
+		every node/.style={align=center},
+		phase/.style={rectangle, rounded corners=3pt, draw=primary, thick,
+				fill=white, minimum width=30mm, minimum height=14mm,
+				inner sep=3pt, font=\scriptsize\bfseries},
+		ctx/.style={rectangle, rounded corners=3pt, draw=accent, thick,
+				fill=accent!8, minimum width=28mm, minimum height=10mm,
+				inner sep=3pt, font=\scriptsize},
+		arr/.style={-{Stealth[length=2mm]}, thick, primary},
+		arrctx/.style={-{Stealth[length=2mm]}, thick, accent, dashed},
+		]
+
+		\node[phase] (parse) {Convertir Consulta \\ \scriptsize{LLM + Pydantic}};
+		\node[phase, right=of parse] (exec) {Ejecutar Consulta \\ \scriptsize{ChromaDB}};
+		\node[phase, right=of exec]  (gen)  {Generar Respuesta \\ \scriptsize{LLM}};
+
+		\node[ctx, above=8mm of parse] (umsg)   {Mensaje del usuario};
+		\node[ctx, above=8mm of exec]  (vec)    {Base vectorial \\ (filtros $+$ HNSW)};
+		\node[ctx, above=8mm of gen]   (rep)    {Reporte + historial};
+
+		\node[ctx, below=8mm of gen, fill=good!10, draw=good]
+		(out) {Respuesta contextual};
+
+		\draw[arr] (parse) -- (exec);
+		\draw[arr] (exec)  -- (gen);
+		\draw[arrctx] (umsg) -- (parse);
+		\draw[arrctx] (vec)  -- (exec);
+		\draw[arrctx] (rep)  -- (gen);
+		\draw[arr, good] (gen) -- (out);
+
+	\end{tikzpicture}
+
+	\medskip
+	\footnotesize
+	\textbf{Convertir consulta:} el LLM transforma la pregunta a un objeto
+	\texttt{ParsedQuery} (\emph{constrained decoding}) con
+	\texttt{texto\_consulta} para búsqueda semántica y \texttt{filtros}
+	(\texttt{tipo}, \texttt{polaridad}, \texttt{lugar}) para ChromaDB. \\
+	\textbf{Ejecutar consulta:} mismo pipeline RAG (pre-filtro $+$ HNSW $+$ rerank). \\
+	\textbf{Generar respuesta:} respuesta anclada al reporte, las reseñas
+	recuperadas y los últimos turnos del historial.
+\end{frame}
+
+\section{Producto Mínimo Viable}
+
+% =============================================================
+\section{Conclusiones y Limitaciones}
+% =============================================================
+
+\begin{frame}{Conclusiones}
+	\begin{itemize}\setlength\itemsep{4pt}
+		\item Se construyó un \textbf{prototipo funcional} de generación de
+		      reportes estratégicos para Pueblos Mágicos a partir de
+		      $\sim 10^6$ fragmentos de reseñas, con trazabilidad a la
+		      evidencia recuperada.
+		\item La combinación de \textbf{RAG con pre-filtrado por metadatos $+$
+			      reranking cross-encoder} permite anclar la generación al subdominio
+		      relevante (pueblo $\times$ tipo de negocio) y reducir alucinaciones.
+		\item La \textbf{salida estructurada} (Pydantic / constrained decoding)
+		      vuelve auditable cada nodo del grafo y elimina la fragilidad de
+		      parsers tolerantes.
+		\item El \textbf{bucle de auditoría} (LLM-as-a-judge contra evidencia)
+		      añade una verificación automática previa a la entrega, con
+		      convergencia empírica en $\le 2$ iteraciones.
+		\item El \textbf{modo chat} extiende el alcance del reporte estático a
+		      una exploración conversacional sobre el mismo corpus,
+		      reutilizando la base vectorial sin re-entrenamiento.
+	\end{itemize}
+\end{frame}
+
+\begin{frame}{Limitaciones}
+	\textbf{Dependencia del corpus.} La calidad y representatividad de
+	los reportes está acotada por el corpus de reseñas recopilado.
+	Sesgos inherentes a las plataformas de origen se propagan a la salida:
+	\begin{itemize}\setlength\itemsep{2pt}
+		\item Tipo de turista que reseña (autoselección).
+		\item Idioma predominante de la plataforma.
+		\item Distribución de polaridades de las opiniones.
+	\end{itemize}
+
+	\medskip
+	\textbf{Dependencia del LLM.}
+	\begin{itemize}\setlength\itemsep{2pt}
+		\item La calidad de la generación está sujeta a las capacidades y
+		      limitaciones del modelo elegido, incluyendo posibles
+		      \textbf{alucinaciones} residuales que el bucle de auditoría
+		      reduce pero no elimina por completo.
+		\item Los \textbf{costos asociados al uso de APIs} de modelos
+		      propietarios pueden restringir el volumen de
+		      experimentación.
+	\end{itemize}
 \end{frame}
 
 \begin{frame}[standout]
@@ -1043,5 +1158,26 @@ class ConsolidatedReport(BaseModel):
 	forwards \emph{en línea}.
 \end{frame}
 % =============================================================
+
+\begin{frame}{Síntesis del diseño}
+	\begin{table}[h]
+		\centering
+		\scriptsize
+		\begin{tabular}{@{}lll@{}}
+			\toprule
+			\textbf{Fase} & \textbf{Decisión}                   & \textbf{Justificación}                        \\ \midrule
+			Chunking      & $L=200$, $o=50$                     & granularidad de aspecto, sin cortar entidades \\
+			Embedding     & SBERT-es, $d=768$                   & lengua nativa + objetivo STS alineado         \\
+			Index         & HNSW coseno, $\texttt{ef}=200$      & $\mathcal{O}(\log N)$, recall$\approx 0.95$   \\
+			Retrieval     & pre-filter $+$ overfetch $\alpha=3$ & dominio acotado $+$ pool denso                \\
+			Rerank        & cross-encoder mMiniLM-L12           & precisión token-a-token, multilingüe          \\
+			Gen.          & Llama-3.1-8B-Instruct, $\tau=0$     & determinismo y reproducibilidad               \\
+			Judge         & gpt-oss-120b, $\tau=0$              & evaluación automática                         \\
+			Output        & Pydantic $\to$ JSON Schema          & garantía sintáctica vía CFG masking           \\
+			Eval.         & auditor $\le 3$ iter.               & \emph{validación} antes de publicar           \\
+			\bottomrule
+		\end{tabular}
+	\end{table}
+\end{frame}
 
 \end{document}

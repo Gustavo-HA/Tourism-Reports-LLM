@@ -61,7 +61,7 @@
 
 % --- Metadatos ---
 \title{Generación de Reportes Sintéticos sobre Pueblos Mágicos usando RAG}
-\subtitle{Laboratorio ATLAS}
+\subtitle{Laboratorio ATLAS \\ Dr. Miguel Ángel Álvarez Carmona}
 \author{Gustavo Hernández Angeles}
 \date{12 de mayo de 2026}
 
@@ -314,7 +314,7 @@
 \end{frame}
 
 % =============================================================
-\section{Marco Teórico}
+\section{Marco Teórico y Metodología}
 % =============================================================
 
 \begin{frame}[fragile]{Notación y datos del corpus}
@@ -378,34 +378,6 @@
 	filtradas por pueblo y tipo de negocio) y se la entregamos como
 	contexto. La generación queda \textbf{anclada a documentos verificables}
 	en vez de a memoria difusa.
-\end{frame}
-
-\begin{frame}{Generación Estructurada}
-	% El LLM no es el producto final. El LLM es solo un componente del sistema.Es \emph{un nodo} dentro de un
-	% grafo (LangGraph) que consume y produce datos tipados:
-	% \texttt{ConsolidatedReport}, \texttt{Scorecard}, \texttt{RoadmapActions}.
-	% Texto libre rompe el pipeline.
-
-	El LLM genera texto libre, pero necesitamos estructurarlo para
-	garantizar una salida consistente y verificable. Sin esto, cada ejecución del LLM devuelve una salida libre, que puede no seguir el formato esperado de un reporte.
-
-	\medskip
-	\textbf{Por qué imponemos un esquema fijo.}
-	\begin{itemize}
-		\item \textbf{Reproducibilidad}: misma entrada $\Rightarrow$ misma
-		      forma de salida, comparable entre corridas y entre pueblos.
-		\item \textbf{Alineación}: cada campo codifica una decisión editorial
-		      (qué reportar, con qué granularidad, qué taxonomía usar).
-		\item \textbf{Validación automática}: rangos
-		      (\texttt{score}\,$\in[1,10]$), tipos, listas no vacías — sin
-		      parsers tolerantes ni heurísticas de reparación.
-		\item \textbf{Composabilidad}: la rama de auditoría y el chat consumen
-		      los mismos objetos sin volver a parsear.
-	\end{itemize}
-
-	\smallskip
-	{\footnotesize El \emph{cómo} (constrained decoding + Pydantic) se
-		detalla en la sección 4.}
 \end{frame}
 
 % =============================================================
@@ -789,7 +761,7 @@
 % =============================================================
 
 % =============================================================
-\section{4. Generación de texto restringida}
+\section*{4. Generación de texto restringida}
 % =============================================================
 
 \begin{frame}{4. Generación: el problema de la salida estructurada}
@@ -844,15 +816,6 @@
 \begin{frame}[fragile]{4. Implementación con Pydantic}
 	\textbf{Esquema declarativo (Ejemplo).}
 	\begin{lstlisting}[style=py]
-class PillarScore(BaseModel):
-    score: int = Field(..., ge=1, le=10)
-    justification: str
-
-class Scorecard(BaseModel):
-    infraestructura: PillarScore
-    servicios:       PillarScore
-    atractivos:      PillarScore
-
 class ConsolidatedReport(BaseModel):
     executive_summary: str
     scorecard:         Scorecard
@@ -879,28 +842,52 @@ class ConsolidatedReport(BaseModel):
 \end{frame}
 
 % =============================================================
-\section{5. Evaluación y bucle de auditoría}
+\section*{5. Evaluación y bucle de auditoría}
 % =============================================================
 
+\begin{frame}{5. LLM-as-a-judge}
+	\textbf{Problema de evaluación.} Métricas léxicas clásicas
+	(BLEU, ROUGE) miden solapamiento de $n$-gramas contra una referencia
+	fija. En nuestro caso \emph{no hay} referencia: el reporte es
+	generado desde cero y la propiedad de interés es la
+	\emph{fidelidad a la evidencia}.
+
+	\medskip
+	\textbf{Idea.} Usar un LLM como \emph{evaluador} de la salida de
+	otro LLM. Dado un par (salida, evidencia) y una rúbrica
+	$\mathcal{R}$, el juez emite un veredicto estructurado:
+	\[
+		J : (\text{salida},\, \text{evidencia},\, \mathcal{R})
+		\;\longmapsto\;
+		(s,\, \text{justificación}),
+		\qquad s \in \mathcal{S}.
+	\]
+
+	\medskip
+	\textbf{Sesgos conocidos.} Auto-preferencia, sesgo de posición y
+	de verbosidad. Mitigación: rúbrica explícita, salida estructurada
+	(no texto libre) y temperatura $\tau=0$.
+\end{frame}
+
 \begin{frame}{5. Auditoría auto-correctiva}
-	\textbf{Riesgo.} Aun con retrieval perfecto, un LLM puede
-	\emph{confabular} cifras o atribuir afirmaciones a evidencia que no las
-	respalda. El reporte final tiene impacto en decisiones de inversión
-	pública: la evaluación es parte del pipeline.
+	\textbf{Instanciación.} Aplicamos LLM-as-a-judge de tal manera que el juez no compara contra
+	un reporte ideal, sino contra las reseñas recuperadas. La rúbrica
+	$\mathcal{R}$ se reduce a una pregunta: \emph{¿toda afirmación del
+		reporte está respaldada por al menos una reseña?}
 
 	\medskip
 	\textbf{Bucle de auto-corrección} ($\le 3$ iteraciones):
 	\begin{enumerate}
-		\item Ejecutar \emph{Map} y \emph{Reduce} $\to$
+		\item Ejecutar el flujo de trabajo $\to$
 		      \texttt{Reporte Consolidado}$^{(t)}$.
-		\item Nodo \emph{Auditor}: el LLM recibe el reporte y una muestra de
-		      las reseñas originales recuperadas, y emite su resultado de auditoría:
+		\item Nodo \emph{Auditor} ($J$): recibe el reporte y una muestra de
+		      las reseñas originales recuperadas, y emite
 		      \[
-			      \texttt{Resultado de Auditoría} =
+			      J(\cdot) =
 			      \bigl(\text{es\_respaldado} \in \{0,1\},\
 			      \text{problemas}: \text{list[str]}\bigr).
 		      \]
-		\item Si $\text{es\_respaldado}=0$ y $t<3$: re-generar con los
+		\item Si $\text{es\_respaldado}=0$ y $t<3$: re-generar inyectando los
 		      \emph{problemas} como contexto adicional ($t \leftarrow t+1$).
 		      En otro caso, terminar.
 	\end{enumerate}
@@ -908,6 +895,13 @@ class ConsolidatedReport(BaseModel):
 	\textbf{Convergencia empírica.} Con greedy ($\tau=0$) y feedback
 	estructurado, la mayoría de pueblos auditados convergen en
 	$t\le 2$ iteraciones.
+\end{frame}
+
+\begin{frame}{5. Ejemplo de auditoría}
+	\begin{figure}
+		\centering
+		\includegraphics[width=\textwidth]{figures/auditoria.png}
+	\end{figure}
 \end{frame}
 
 % =============================================================
@@ -927,8 +921,9 @@ class ConsolidatedReport(BaseModel):
 			Retrieval     & pre-filter $+$ overfetch $\alpha=3$ & dominio acotado $+$ pool denso                \\
 			Rerank        & cross-encoder mMiniLM-L12           & precisión token-a-token, multilingüe          \\
 			Gen.          & Llama-3.1-8B-Instruct, $\tau=0$     & determinismo y reproducibilidad               \\
+			Judge         & gpt-oss-120b, $\tau=0$              & evaluación automática                         \\
 			Output        & Pydantic $\to$ JSON Schema          & garantía sintáctica vía CFG masking           \\
-			Eval.         & auditor $\le 3$ iter.               & \emph{groundedness} antes de publicar         \\
+			Eval.         & auditor $\le 3$ iter.               & \emph{validación} antes de publicar           \\
 			\bottomrule
 		\end{tabular}
 	\end{table}
